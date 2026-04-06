@@ -54,7 +54,7 @@ function banner(cfg, currentChat, historyLen, pinsCount = 0) {
 // ─── Help Screen (Claude Code style — grouped, clean) ──────────────────────
 
 function printHelp(cfg) {
-  console.log("");
+  let helpContent = [];
 
   const sections = [
     {
@@ -152,14 +152,18 @@ function printHelp(cfg) {
     }
   ];
 
+  const maxCmdLen = sections.reduce((max, section) => {
+    return Math.max(max, ...section.items.map(([cmd]) => stripAnsi(cmd).length));
+  }, 0);
+  const cmdPad = Math.min(maxCmdLen + 2, 28); // Max 28 for command, +2 for spacing
+
   for (const section of sections) {
-    console.log(`  ${ACCENT}${C.bold}${section.title}${C.reset}`);
-    console.log("");
+    helpContent.push(`${ACCENT}${C.bold}${section.title}${C.reset}`);
     for (const [cmd, desc] of section.items) {
-      const padded = cmd.padEnd(24);
-      console.log(`    ${TEXT}${C.bold}${padded}${C.reset} ${MUTED}${desc}${C.reset}`);
+      const paddedCmd = `${TEXT}${C.bold}${cmd.padEnd(cmdPad)}${C.reset}`;
+      helpContent.push(`  ${paddedCmd} ${MUTED}${desc}${C.reset}`);
     }
-    console.log("");
+    helpContent.push(""); // Add a blank line between sections
   }
 
   // Aliases footer
@@ -167,10 +171,12 @@ function printHelp(cfg) {
   if (aliasEntries.length > 0) {
     const aliasStr = aliasEntries
       .map(([a, b]) => `${TEXT_DIM}${a}${MUTED} → ${TEXT_DIM}${b}`)
-      .join("  ");
-    console.log(`  ${MUTED}aliases:${C.reset} ${aliasStr}${C.reset}`);
-    console.log("");
+      .join(`  ${MUTED}·${C.reset}  `);
+    helpContent.push(`${MUTED}Aliases:${C.reset} ${aliasStr}`);
   }
+
+  console.log(box(helpContent.join("\\n"), { title: t(cfg, "help_title"), width: COLS - 2 }));
+  console.log("");
 }
 
 // ─── Stats (Claude Code style — tabular, clean) ────────────────────────────

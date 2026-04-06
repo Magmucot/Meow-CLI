@@ -4,7 +4,8 @@
 
 import {
   ACCENT, ACCENT2, ACCENT3, SUCCESS, WARNING, ERROR, MUTED,
-  TEXT, TEXT_DIM, AUTO_CLR, INFO, C, COLS, box, log, stripAnsi
+  TEXT, TEXT_DIM, AUTO_CLR, INFO, C, COLS, box, log, stripAnsi,
+  tag, pill
 } from "./ui.js";
 import { t } from "./config.js";
 import { listPlugins } from "./plugins.js";
@@ -22,33 +23,30 @@ function banner(cfg, currentChat, historyLen, pinsCount = 0) {
   ];
   logo.forEach(l => console.log(l));
 
-  console.log(`\n  ${MUTED}${t(cfg, "banner_subtitle")}${C.reset}`);
-  console.log(`  ${MUTED}${"─".repeat(Math.min(COLS - 4, 50))}${C.reset}`);
+  const bannerContent = [];
+  bannerContent.push(`  ${MUTED}${t(cfg, "banner_subtitle")}${C.reset}`);
+  bannerContent.push(`  ${MUTED}${"─".repeat(Math.min(COLS - 4, 50))}${C.reset}`);
 
   // Status line — Claude Code style: compact key:value pairs
-  const pairs = [
-    [`model`,   `${ACCENT}${cfg.model}${C.reset}`],
-    [`profile`, `${ACCENT2}${cfg.profile}${C.reset}`],
-    [`chat`,    `${SUCCESS}${currentChat}${C.reset}`],
-    [`msgs`,    `${TEXT_DIM}${historyLen}${C.reset}`],
-  ];
-  if (pinsCount > 0) pairs.push([`pins`, `${TEXT_DIM}${pinsCount}${C.reset}`]);
+  const statusParts = [];
+  statusParts.push(`${tag(cfg.model, ACCENT)}`);
+  statusParts.push(`${tag(cfg.profile, ACCENT2)}`);
+  statusParts.push(`${tag(currentChat, SUCCESS)}`);
+  statusParts.push(`${pill(`${historyLen} msgs`, TEXT_DIM)}`);
+  if (pinsCount > 0) statusParts.push(`${pill(`${pinsCount} pins`, TEXT_DIM)}`);
 
-  const statusLine = pairs
-    .map(([k, v]) => `${MUTED}${k}:${C.reset} ${v}`)
-    .join(`  ${MUTED}·${C.reset}  `);
-  console.log(`  ${statusLine}`);
+  bannerContent.push(`  ${statusParts.join("  ")}`);
 
-  // API key warning
   if (!cfg.api_key) {
-    console.log("");
-    console.log(box(
-      `${WARNING}${C.bold}${t(cfg, "api_key_missing_title")}${C.reset}\n${TEXT_DIM}${t(cfg, "api_key_missing_hint")}${C.reset}`,
-      { title: "⚠ Setup Required", color: WARNING, width: Math.min(COLS - 2, 55) }
+    bannerContent.push("");
+    bannerContent.push(box(
+      `${WARNING}${C.bold}${t(cfg, "api_key_missing_title")}${C.reset}\\n${TEXT_DIM}${t(cfg, "api_key_missing_hint")}${C.reset}`,
+      { title: "⚠ Setup Required", color: WARNING, width: Math.min(COLS - 2, 55), style: "sharp" }
     ));
   }
 
-  console.log(`\n  ${MUTED}${t(cfg, "type_help")}${C.reset}\n`);
+  bannerContent.push(`\\n  ${MUTED}${t(cfg, "type_help")}${C.reset}\\n`);
+  console.log(bannerContent.join("\\n"));
 }
 
 // ─── Help Screen (Claude Code style — grouped, clean) ──────────────────────
@@ -182,7 +180,6 @@ function printHelp(cfg) {
 // ─── Stats (Claude Code style — tabular, clean) ────────────────────────────
 
 function printStats(cfg, currentChat, historyLen, pinsCount = 0) {
-  console.log("");
   const profile = cfg.profiles[cfg.profile] || cfg.profiles.default;
   const vac = cfg.vacuum || {};
   const pluginSummary = getPluginSummary(cfg);
@@ -201,17 +198,18 @@ function printStats(cfg, currentChat, historyLen, pinsCount = 0) {
     ["Git Autocommit",  cfg.git?.autocommit === false ? `${MUTED}off${C.reset}` : `${SUCCESS}on${C.reset}`],
     ["AP Limit",        `${AUTO_CLR}${cfg.autopilot?.max_iterations || 50}${C.reset}`],
     ["Plugins",         `${TEXT}${pluginSummary}${C.reset}`],
-    ["Vacuum",          `${vac.enabled ? SUCCESS + "on" : MUTED + "off"}${C.reset} ${MUTED}(drop ${vac.drop_count || 0}, keep ${vac.keep_last || 0})${C.reset}`],
-    ["Pins",            `${TEXT}${pinsCount}${C.reset}`],
-    ["CWD",             `${MUTED}${process.cwd()}${C.reset}`],
-  ];
+    ["Vacuum",          `${vac.enabled ? SUCCESS + "on" : MUTED + "off"}${C.reset} ${MUTED}(drop ${vac.drop_count || 0}, keep ${vac.keep_last || 0})${C.reset}`],\n    ["Pins",            `${TEXT}${pinsCount}${C.reset}`],\n    ["CWD",             `${MUTED}${process.cwd()}${C.reset}`],\n  ];
 
-  console.log(`  ${ACCENT}${C.bold}${t(cfg, "stats_title")}${C.reset}`);
-  console.log(`  ${MUTED}${"─".repeat(50)}${C.reset}`);
+  let statsContent = [];
+  statsContent.push(`  ${ACCENT}${C.bold}${t(cfg, "stats_title")}${C.reset}`);
+  statsContent.push(`  ${MUTED}${"─".repeat(50)}${C.reset}`);
   for (const [label, value] of rows) {
-    console.log(`  ${TEXT_DIM}${label.padEnd(18)}${C.reset} ${value}`);
+    statsContent.push(`  ${TEXT_DIM}${label.padEnd(18)}${C.reset} ${value}`);
   }
-  console.log(`  ${MUTED}${"─".repeat(50)}${C.reset}\n`);
+  statsContent.push(`  ${MUTED}${"─".repeat(50)}${C.reset}`);
+
+  console.log(box(statsContent.join("\\n"), { width: COLS - 2 }));
+  console.log("");
 }
 
 function getPluginSummary(cfg) {
@@ -225,8 +223,7 @@ function getPluginSummary(cfg) {
   const parts = [`${enabled}/${total}`];
   if (disabled > 0) parts.push(`${disabled} off`);
   if (pending > 0) parts.push(`${pending} missing`);
-  return parts.join(` ${MUTED}·${C.reset} `);
-}
+  return parts.join(` ${MUTED}·${C.reset} `);\n}
 
 // ─── Chat List ──────────────────────────────────────────────────────────────
 
@@ -234,42 +231,46 @@ function printChatList(state) {
   const names = Object.keys(state.chats || {}).sort();
   if (names.length === 0) { log.dim("No chats yet."); return; }
 
-  console.log("");
-  console.log(`  ${ACCENT}${C.bold}Chats${C.reset}`);
-  console.log(`  ${MUTED}${"─".repeat(45)}${C.reset}`);
+  let chatListContent = [];
+  chatListContent.push(`  ${ACCENT}${C.bold}Chats${C.reset}`);
+  chatListContent.push(`  ${MUTED}${"─".repeat(45)}${C.reset}`);
 
   for (const name of names) {
     const msgs = (state.chats[name] || []).length;
     const isCurrent = name === state.current;
     const indicator = isCurrent ? `${SUCCESS}●${C.reset}` : `${MUTED}○${C.reset}`;
     const nameColor = isCurrent ? `${SUCCESS}${C.bold}` : `${TEXT}`;
-    console.log(`  ${indicator} ${nameColor}${name}${C.reset}  ${MUTED}${msgs} msgs${C.reset}`);
+    chatListContent.push(`  ${indicator} ${nameColor}${name}${C.reset}  ${MUTED}${msgs} msgs${C.reset}`);
   }
+  chatListContent.push(`  ${MUTED}${"─".repeat(45)}${C.reset}`);
 
-  console.log(`  ${MUTED}${"─".repeat(45)}${C.reset}\n`);
+  console.log(box(chatListContent.join("\\n"), { width: COLS - 2 }));
+  console.log("");
 }
 
 // ─── Config Display ─────────────────────────────────────────────────────────
 
 function printConfig(cfg) {
-  console.log("");
-  console.log(`  ${ACCENT}${C.bold}Configuration${C.reset}`);
-  console.log(`  ${MUTED}${"─".repeat(50)}${C.reset}`);
+  let configContent = [];
+  configContent.push(`  ${ACCENT}${C.bold}Configuration${C.reset}`);
+  configContent.push(`  ${MUTED}${"─".repeat(50)}${C.reset}`);
 
   const safe = { ...cfg, api_key: cfg.api_key ? cfg.api_key.slice(0, 8) + "…" : "(not set)" };
   const json = JSON.stringify(safe, null, 2);
 
-  for (const line of json.split("\n")) {
+  for (const line of json.split("\\n")) {
     const colored = line
-      .replace(/"([^"]+)":/g,        `${ACCENT}"$1"${C.reset}:`)
-      .replace(/: "([^"]+)"/g,       `: ${SUCCESS}"$1"${C.reset}`)
-      .replace(/: (\d+\.?\d*)/g,     `: ${WARNING}$1${C.reset}`)
+      .replace(/\"([^\"]+)\":/g,        `${ACCENT}\"$1\"${C.reset}:`)
+      .replace(/: \"([^\"]+)\"/g,       `: ${SUCCESS}\"$1\"${C.reset}`)
+      .replace(/: (\\d+\\.?\\d*)/g,     `: ${WARNING}$1${C.reset}`)
       .replace(/: (true|false)/g,    `: ${INFO}$1${C.reset}`)
       .replace(/: (null)/g,          `: ${MUTED}$1${C.reset}`);
-    console.log(`  ${colored}`);
+    configContent.push(`  ${colored}`);
   }
+  configContent.push(`  ${MUTED}${"─".repeat(50)}${C.reset}`);
 
-  console.log(`  ${MUTED}${"─".repeat(50)}${C.reset}\n`);
+  console.log(box(configContent.join("\\n"), { width: COLS - 2 }));
+  console.log("");
 }
 
 // ─── Autopilot Config ───────────────────────────────────────────────────────
@@ -277,9 +278,9 @@ function printConfig(cfg) {
 function printAutopilotConfig(cfg) {
   const ap = cfg.autopilot || {};
 
-  console.log("");
-  console.log(`  ${AUTO_CLR}${C.bold}🤖 Autopilot Configuration${C.reset}`);
-  console.log(`  ${MUTED}${"─".repeat(45)}${C.reset}`);
+  let apConfigContent = [];
+  apConfigContent.push(`  ${AUTO_CLR}${C.bold}🤖 Autopilot Configuration${C.reset}`);
+  apConfigContent.push(`  ${MUTED}${"─".repeat(45)}${C.reset}`);
 
   const rows = [
     ["Max iterations", `${AUTO_CLR}${ap.max_iterations || 50}${C.reset}`],
@@ -291,10 +292,12 @@ function printAutopilotConfig(cfg) {
   ];
 
   for (const [label, value] of rows) {
-    console.log(`  ${TEXT_DIM}${label.padEnd(18)}${C.reset} ${value}`);
+    apConfigContent.push(`  ${TEXT_DIM}${label.padEnd(18)}${C.reset} ${value}`);
   }
+  apConfigContent.push(`  ${MUTED}${"─".repeat(45)}${C.reset}`);
 
-  console.log(`  ${MUTED}${"─".repeat(45)}${C.reset}\n`);
+  console.log(box(apConfigContent.join("\\n"), { width: COLS - 2 }));
+  console.log("");
 }
 
 // ─── Prompt (Claude Code style — minimal, one-line context) ─────────────────
@@ -309,7 +312,7 @@ function makePrompt(cfg, currentChat, historyLen = 0) {
     `${C.reset}`,
     `  ${MUTED}${currentChat}${C.reset} ${MUTED}·${C.reset} ${MUTED}${modelShort}${C.reset} ${MUTED}·${C.reset} ${MUTED}${historyLen} msgs${C.reset}`,
     `  ${ACCENT}${C.bold}❯${C.reset} `
-  ].join("\n");
+  ].join("\\n");
 }
 
 // ─── Exports ────────────────────────────────────────────────────────────────

@@ -136,7 +136,7 @@ class StreamRenderer {
 
     if (!this.started) {
       // Print header on first chunk
-      log.section(`Assistant`, AI_CLR); // Using log.section for consistency
+      console.log(`  ${AI_CLR}${C.bold}Assistant${C.reset}`);
       this.started = true;
     }
 

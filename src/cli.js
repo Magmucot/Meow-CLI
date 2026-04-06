@@ -244,14 +244,16 @@ async function main() {
   ctx.refreshBanner();
 
   // Show tips using log.section and individual lines for better control
-  log.section(t(ctx.cfg, "tips_title"));
-  console.log(`${TEXT_DIM}${t(ctx.cfg, "tips_body")}`);
-  console.log(`${TEXT_DIM}• /context — project context (MEOW.md)`);
-  console.log(`${TEXT_DIM}• /permissions — manage tool permissions`);
-  console.log(`${TEXT_DIM}• /rewind — undo file changes`);
-  console.log(`${TEXT_DIM}• /compact — compress context`);
-  console.log(`${TEXT_DIM}• /cost — token usage & cost`);
-  console.log(""); // Add an extra newline for spacing
+  console.log(box(
+    `${TEXT_DIM}${t(ctx.cfg, "tips_body")}\n` +
+    `${TEXT_DIM}• /context — project context (MEOW.md)\n` +
+    `${TEXT_DIM}• /permissions — manage tool permissions\n` +
+    `${TEXT_DIM}• /rewind — undo file changes\n` +
+    `${TEXT_DIM}• /compact — compress context\n` +
+    `${TEXT_DIM}• /cost — token usage & cost`,
+    { title: t(ctx.cfg, "tips_title"), width: COLS - 2 }
+  ));
+  console.log("");
 
   await loadPlugins(ctx.cfg, ctx);
 

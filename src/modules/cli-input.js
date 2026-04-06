@@ -11,13 +11,11 @@ const readMultilineInput = (promptText) => new Promise(resolve => {
   let lastRenderedLineCount = 1;
 
   const render = () => {
-    if (renderedLines > 0) {
-      readline.moveCursor(process.stdout, 0, -renderedLines);
-      readline.clearScreenDown(process.stdout);
-    }
+    readline.moveCursor(process.stdout, 0, -lastRenderedLineCount);
+    readline.clearScreenDown(process.stdout);
     const full = prompt + buffer;
     process.stdout.write(full);
-    renderedLines = full.split("\n").length - 1;
+    lastRenderedLineCount = full.split("\n").length;
   };
 
   const finish = () => {

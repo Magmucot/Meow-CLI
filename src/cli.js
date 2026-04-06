@@ -136,9 +136,7 @@ class StreamRenderer {
 
     if (!this.started) {
       // Print header on first chunk
-      console.log("");
-      console.log(`  ${AI_CLR}${C.bold}Assistant${C.reset}`);
-      console.log(`  ${MUTED}${"─".repeat(Math.min(COLS - 4, 50))}${C.reset}`);
+      log.section(`Assistant`, AI_CLR); // Using log.section for consistency
       this.started = true;
     }
 
@@ -162,7 +160,7 @@ class StreamRenderer {
     }
 
     if (this.started) {
-      console.log(`  ${MUTED}${"─".repeat(Math.min(COLS - 4, 50))}${C.reset}`);
+      log.dim("─".repeat(Math.min(COLS - 4, 50))); // Using log.dim for consistency
     }
   }
 
@@ -189,12 +187,10 @@ class StreamRenderer {
 // ─── Non-streaming Response Renderer ────────────────────────────────────────
 
 function renderNonStreaming(msg, data) {
-  console.log("");
-  console.log(`  ${AI_CLR}${C.bold}Assistant${C.reset}`);
-  console.log(`  ${MUTED}${"─".repeat(Math.min(COLS - 4, 50))}${C.reset}`);
+  log.section(`Assistant`, AI_CLR); // Using log.section for consistency
   const output = renderMD(msg.content || "").trim();
   console.log(output.split("\n").map(l => "  " + l).join("\n"));
-  console.log(`  ${MUTED}${"─".repeat(Math.min(COLS - 4, 50))}${C.reset}`);
+  log.dim("─".repeat(Math.min(COLS - 4, 50))); // Using log.dim for consistency
 }
 
 // ─── Main Interactive Loop ──────────────────────────────────────────────────
@@ -246,14 +242,16 @@ async function main() {
 
   // Show banner
   ctx.refreshBanner();
-  console.log(box(`
-${TEXT}${t(ctx.cfg, "tips_title").replace("✨ ", "")}:
-${TEXT_DIM}${t(ctx.cfg, "tips_body")}
-${TEXT_DIM}• /context — project context (MEOW.md)
-${TEXT_DIM}• /permissions — manage tool permissions
-${TEXT_DIM}• /rewind — undo file changes
-${TEXT_DIM}• /compact — compress context
-${TEXT_DIM}• /cost — token usage & cost${C.reset}`, { title: t(ctx.cfg, "tips_title"), color: ACCENT3, width: Math.min(COLS - 2, 60) }));
+
+  // Show tips using log.section and individual lines for better control
+  log.section(t(ctx.cfg, "tips_title"));
+  console.log(`${TEXT_DIM}${t(ctx.cfg, "tips_body")}`);
+  console.log(`${TEXT_DIM}• /context — project context (MEOW.md)`);
+  console.log(`${TEXT_DIM}• /permissions — manage tool permissions`);
+  console.log(`${TEXT_DIM}• /rewind — undo file changes`);
+  console.log(`${TEXT_DIM}• /compact — compress context`);
+  console.log(`${TEXT_DIM}• /cost — token usage & cost`);
+  console.log(""); // Add an extra newline for spacing
 
   await loadPlugins(ctx.cfg, ctx);
 

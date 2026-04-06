@@ -194,13 +194,19 @@ function printStats(cfg, currentChat, historyLen, pinsCount = 0) {
     ["Auto-yes",        cfg.auto_yes ? `${SUCCESS}on${C.reset}` : `${MUTED}off${C.reset}`],
     ["Git Autocommit",  cfg.git?.autocommit === false ? `${MUTED}off${C.reset}` : `${SUCCESS}on${C.reset}`],
     ["AP Limit",        `${AUTO_CLR}${cfg.autopilot?.max_iterations || 50}${C.reset}`],
-    ["Plugins",         `${TEXT}${pluginSummary}${C.reset}`],\n    ["Vacuum",          `${vac.enabled ? SUCCESS + "on" : MUTED + "off"}${C.reset} ${MUTED}(drop ${vac.drop_count || 0}, keep ${vac.keep_last || 0})${C.reset}`],\n    ["Pins",            `${TEXT}${pinsCount}${C.reset}`],\n    ["CWD",             `${MUTED}${process.cwd()}${C.reset}`],\n  ];
+    ["Plugins",         `${TEXT}${pluginSummary}${C.reset}`],
+    ["Vacuum",          `${vac.enabled ? SUCCESS + "on" : MUTED + "off"}${C.reset} ${MUTED}(drop ${vac.drop_count || 0}, keep ${vac.keep_last || 0})${C.reset}`],
+    ["Pins",            `${TEXT}${pinsCount}${C.reset}`],
+    ["CWD",             `${MUTED}${process.cwd()}${C.reset}`],
+  ];
 
   console.log(`  ${ACCENT}${C.bold}${t(cfg, "stats_title")}${C.reset}`);
   console.log(`  ${MUTED}${"─".repeat(50)}${C.reset}`);
   for (const [label, value] of rows) {
     console.log(`  ${TEXT_DIM}${label.padEnd(18)}${C.reset} ${value}`);
-  }\n  console.log(`  ${MUTED}${"─".repeat(50)}${C.reset}\n`);\n}
+  }
+  console.log(`  ${MUTED}${"─".repeat(50)}${C.reset}\n`);
+}
 
 function getPluginSummary(cfg) {
   const plugins = listPlugins();

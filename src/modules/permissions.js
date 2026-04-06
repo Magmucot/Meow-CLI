@@ -1,0 +1,284 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// permissions.js — Meow CLI Permission System (Claude Code–grade)
+// 3-level: ask / allow / deny with pattern matching
+// ═══════════════════════════════════════════════════════════════════════════
+
+import fs from "fs";
+import path from "path";
+import { PERM_FILE } from "./config.js";
+import { log, C, SUCCESS, ERROR, WARNING, MUTED, TEXT, TEXT_DIM, ACCENT, box, COLS } from "./ui.js";
+
+// ─── Permission Levels ──────────────────────────────────────────────────────
+
+const LEVEL = {
+  ASK:   "ask",
+  ALLOW: "allow",
+  DENY:  "deny",
+};
+
+// Tools that are always safe (read-only, no side effects)
+const SAFE_TOOLS = new Set(["list_dir", "read_file", "grep_search", "ask_user", "confirm", "choose"]);
+
+// Tools that require explicit permission
+const DANGEROUS_TOOLS = new Set(["run_shell", "write_file", "patch_file", "http_request", "web_search"]);
+
+// ─── Pattern Matching ───────────────────────────────────────────────────────
+
+function matchPattern(pattern, value) {
+  if (pattern === "*") return true;
+  if (pattern === value) return true;
+
+  // tool:path pattern  e.g. "write_file:src/*.js"
+  if (pattern.includes(":")) {
+    const [pTool, pPath] = pattern.split(":", 2);
+    if (pTool !== "*" && pTool !== value) return false;
+    return true; // tool matched, path checked separately
+  }
+
+  // glob-style: "write_file*" matches "write_file"
+  if (pattern.endsWith("*")) {
+    return value.startsWith(pattern.slice(0, -1));
+  }
+
+  return false;
+}
+
+function matchPathPattern(pattern, filePath) {
+  if (!pattern || !filePath) return true;
+  if (pattern === "*") return true;
+
+  // Simple glob: "src/*.js"
+  const regexStr = "^" + pattern
+    .replace(/\./g, "\\.")
+    .replace(/\*\*/g, "§§")
+    .replace(/\*/g, "[^/]*")
+    .replace(/§§/g, ".*")
+    + "$";
+
+  try {
+    return new RegExp(regexStr).test(filePath);
+  } catch {
+    return pattern === filePath;
+  }
+}
+
+// ─── Permission Store ───────────────────────────────────────────────────────
+
+class PermissionStore {
+  constructor() {
+    this.rules = [];
+    this.sessionOverrides = new Map(); // transient per-session
+    this._load();
+  }
+
+  _load() {
+    try {
+      if (fs.existsSync(PERM_FILE)) {
+        const data = JSON.parse(fs.readFileSync(PERM_FILE, "utf8"));
+        this.rules = Array.isArray(data.rules) ? data.rules : [];
+      }
+    } catch {
+      this.rules = [];
+    }
+  }
+
+  _save() {
+    try {
+      fs.mkdirSync(path.dirname(PERM_FILE), { recursive: true });
+      fs.writeFileSync(PERM_FILE, JSON.stringify({ rules: this.rules }, null, 2));
+    } catch (e) {
+      log.err(`Permission save error: ${e.message}`);
+    }
+  }
+
+  // Add a rule
+  addRule(tool, level, pathPattern = null) {
+    // Remove existing rule for same tool+path
+    this.rules = this.rules.filter(r =>
+      !(r.tool === tool && r.path === pathPattern)
+    );
+    this.rules.push({
+      tool,
+      level,
+      path: pathPattern,
+      created: Date.now(),
+    });
+    this._save();
+  }
+
+  // Remove a rule
+  removeRule(tool, pathPattern = null) {
+    const before = this.rules.length;
+    this.rules = this.rules.filter(r =>
+      !(r.tool === tool && r.path === pathPattern)
+    );
+    if (this.rules.length !== before) this._save();
+    return before !== this.rules.length;
+  }
+
+  // Reset all rules
+  resetAll() {
+    this.rules = [];
+    this.sessionOverrides.clear();
+    this._save();
+  }
+
+  // Check permission for a tool call
+  check(toolName, args = {}) {
+    // Safe tools always allowed
+    if (SAFE_TOOLS.has(toolName)) return LEVEL.ALLOW;
+
+    // Check session overrides first (most recent)
+    const sessionKey = `${toolName}:${args.path || args.cmd || "*"}`;
+    if (this.sessionOverrides.has(sessionKey)) {
+      return this.sessionOverrides.get(sessionKey);
+    }
+
+    // Check persistent rules (most specific first)
+    const filePath = args.path || args.cmd || null;
+
+    // 1. Exact tool+path match
+    for (const rule of this.rules) {
+      if (rule.tool === toolName && rule.path && filePath) {
+        if (matchPathPattern(rule.path, filePath)) {
+          return rule.level;
+        }
+      }
+    }
+
+    // 2. Tool-only match
+    for (const rule of this.rules) {
+      if (rule.tool === toolName && !rule.path) {
+        return rule.level;
+      }
+    }
+
+    // 3. Wildcard match
+    for (const rule of this.rules) {
+      if (rule.tool === "*") {
+        return rule.level;
+      }
+    }
+
+    // Default: ask for dangerous tools
+    return DANGEROUS_TOOLS.has(toolName) ? LEVEL.ASK : LEVEL.ALLOW;
+  }
+
+  // Remember a session-level decision
+  rememberSession(toolName, args, level) {
+    const sessionKey = `${toolName}:${args.path || args.cmd || "*"}`;
+    this.sessionOverrides.set(sessionKey, level);
+  }
+
+  // Get all rules for display
+  listRules() {
+    return [...this.rules].sort((a, b) => {
+      if (a.tool !== b.tool) return a.tool.localeCompare(b.tool);
+      return (a.path || "").localeCompare(b.path || "");
+    });
+  }
+}
+
+// ─── Permission Dialog ──────────────────────────────────────────────────────
+
+async function askPermission(toolName, args, store, autoYes = false) {
+  const level = store.check(toolName, args);
+
+  if (level === LEVEL.ALLOW) return true;
+  if (level === LEVEL.DENY) {
+    log.warn(`Permission denied for ${toolName} (rule)`);
+    return false;
+  }
+
+  // Auto-yes mode uses stored permissions, defaults to allow
+  if (autoYes) return true;
+
+  // Show permission dialog
+  const detail = formatToolDetail(toolName, args);
+
+  return new Promise(resolve => {
+    console.log("");
+    console.log(box(
+      `${WARNING}${C.bold}${toolName}${C.reset}\n${MUTED}${detail}${C.reset}`,
+      { title: "⚠ Permission required", color: WARNING, width: Math.min(COLS - 2, 70) }
+    ));
+    console.log("");
+    console.log(`  ${TEXT}Options:${C.reset}`);
+    console.log(`    ${SUCCESS}y${C.reset}  ${TEXT_DIM}Allow once${C.reset}`);
+    console.log(`    ${SUCCESS}a${C.reset}  ${TEXT_DIM}Always allow this tool${C.reset}`);
+    console.log(`    ${ERROR}d${C.reset}  ${TEXT_DIM}Always deny this tool${C.reset}`);
+    console.log(`    ${ERROR}n${C.reset}  ${TEXT_DIM}Deny once${C.reset}`);
+    process.stdout.write(`\n  ${TEXT}[y/a/d/N]${C.reset} ${MUTED}(auto-deny 15s)${C.reset} `);
+
+    const onData = (d) => {
+      clearTimeout(timer);
+      process.stdin.off("data", onData);
+      const answer = d.toString().trim().toLowerCase();
+
+      switch (answer) {
+        case "y":
+          console.log(`  ${SUCCESS}✓ Allowed once${C.reset}\n`);
+          resolve(true);
+          break;
+        case "a":
+          store.addRule(toolName, LEVEL.ALLOW);
+          console.log(`  ${SUCCESS}✓ Always allowed: ${toolName}${C.reset}\n`);
+          resolve(true);
+          break;
+        case "d":
+          store.addRule(toolName, LEVEL.DENY);
+          console.log(`  ${ERROR}✗ Always denied: ${toolName}${C.reset}\n`);
+          resolve(false);
+          break;
+        default:
+          console.log(`  ${ERROR}✗ Denied${C.reset}\n`);
+          resolve(false);
+          break;
+      }
+    };
+
+    const timer = setTimeout(() => {
+      process.stdin.off("data", onData);
+      console.log(`  ${ERROR}✗ Auto-denied (timeout)${C.reset}\n`);
+      resolve(false);
+    }, 15000);
+
+    process.stdin.on("data", onData);
+  });
+}
+
+function formatToolDetail(toolName, args) {
+  switch (toolName) {
+    case "write_file":
+    case "patch_file":
+      return args.path || "unknown file";
+    case "run_shell":
+      return (args.cmd || "").slice(0, 120);
+    case "http_request":
+      return `${args.method || "GET"} ${args.url || ""}`.slice(0, 120);
+    case "web_search":
+      return `Search: ${args.query || ""}`;
+    default:
+      return JSON.stringify(args).slice(0, 120);
+  }
+}
+
+// ─── Singleton ──────────────────────────────────────────────────────────────
+
+let _store = null;
+function getPermissionStore() {
+  if (!_store) _store = new PermissionStore();
+  return _store;
+}
+
+
+export {
+  LEVEL,
+  SAFE_TOOLS,
+  DANGEROUS_TOOLS,
+  PermissionStore,
+  askPermission,
+  getPermissionStore,
+  matchPattern,
+  matchPathPattern,
+};

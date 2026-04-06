@@ -1,0 +1,95 @@
+import fs from "fs";
+import path from "path";
+import {
+  loadConfig,
+  loadHistoryState,
+  saveHistoryState,
+  loadPins,
+  simplifyContentForHistory,
+  applyVacuum,
+  banner,
+  ASSIST_DIR,
+  migrateLegacyData,
+  C,
+  WARNING,
+  MUTED,
+  ACCENT
+} from "../core.js";
+
+const createCliContext = () => {
+  migrateLegacyData();
+  try { fs.mkdirSync(ASSIST_DIR, { recursive: true }); } catch {}
+
+  let cfg = loadConfig();
+  let historyState = loadHistoryState();
+
+  if (!cfg.profiles[cfg.profile]) cfg.profile = "default";
+  if (!historyState.chats[historyState.current]) historyState.chats[historyState.current] = [];
+
+  let currentChat = historyState.current;
+  let history = historyState.chats[currentChat];
+  let messages = [{ role: "system", content: cfg.profiles[cfg.profile].system }, ...history];
+  let pendingImages = [];
+  let activeAutopilot = null;
+
+  const ctx = {
+    cfg,
+    historyState,
+    currentChat,
+    history,
+    messages,
+    pendingImages,
+    activeAutopilot,
+  };
+
+  ctx.saveState = () => {
+    ctx.history = ctx.messages.filter(m => m.role !== "system").map(m => {
+      if (m.role === "user" && Array.isArray(m.content))
+        return { ...m, content: simplifyContentForHistory(m.content) };
+      return m;
+    });
+    ctx.historyState.chats[ctx.currentChat] = ctx.history;
+    ctx.historyState.current = ctx.currentChat;
+    const vacHistory = applyVacuum(ctx.history, ctx.cfg);
+    ctx.historyState.chats[ctx.currentChat] = vacHistory;
+    ctx.history = vacHistory;
+    ctx.messages = [{ role: "system", content: ctx.cfg.profiles[ctx.cfg.profile].system }, ...ctx.history];
+    saveHistoryState(ctx.historyState);
+  };
+
+  ctx.refreshBanner = () => {
+    const pinsCount = loadPins().length;
+    banner(ctx.cfg, ctx.currentChat, ctx.history.length, pinsCount);
+  };
+
+  return ctx;
+};
+
+const registerSignalHandlers = (ctx) => {
+  let ctrlCCount = 0;
+  let ctrlCTimer = null;
+
+  process.on("SIGINT", () => {
+    if (ctx.activeAutopilot && ctx.activeAutopilot.running) {
+      console.log(`
+  ${WARNING}▲ Stopping autopilot...${C.reset}`);
+      ctx.activeAutopilot.abort();
+      return;
+    }
+
+    ctrlCCount++;
+    if (ctrlCCount == 1) {
+      console.log(`
+  ${MUTED}Press Ctrl+C again to exit${C.reset}`);
+      ctrlCTimer = setTimeout(() => { ctrlCCount = 0; }, 2000);
+    } else {
+      clearTimeout(ctrlCTimer);
+      console.log(`
+  ${ACCENT}${C.bold}Goodbye! 👋${C.reset}
+`);
+      process.exit(0);
+    }
+  });
+};
+
+export { createCliContext, registerSignalHandlers };

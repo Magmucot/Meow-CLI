@@ -1,0 +1,35 @@
+{
+  "name": "meowcli",
+  "version": "2.0.0",
+  "description": "Powerful terminal-based AI Agent with streaming, permissions, checkpoints, and autonomous mode",
+  "main": "index.js",
+  "type": "module",
+  "bin": {
+    "ai": "./index.js",
+    "meow": "./index.js"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "pipe": "node index.js --pipe"
+  },
+  "keywords": [
+    "ai",
+    "cli",
+    "terminal",
+    "openai",
+    "assistant",
+    "automation",
+    "agent",
+    "streaming",
+    "claude-code"
+  ],
+  "author": "cons0leweb",
+  "dependencies": {
+    "diff": "^5.1.0",
+    "marked": "^11.1.0",
+    "marked-terminal": "^6.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

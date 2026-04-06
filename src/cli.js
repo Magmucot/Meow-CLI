@@ -160,7 +160,7 @@ class StreamRenderer {
     }
 
     if (this.started) {
-      log.dim("─".repeat(Math.min(COLS - 4, 50))); // Using log.dim for consistency
+      console.log(`  ${MUTED}${"─".repeat(Math.min(COLS - 4, 50))}${C.reset}`);
     }
   }
 

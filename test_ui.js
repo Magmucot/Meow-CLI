@@ -9,7 +9,7 @@ const color = (hex) => {
     get(target, prop) {
       if (prop === 'hexCode') return hex;
       if (prop === 'toString' || prop === Symbol.toPrimitive) {
-        return () => fn.open || "";
+        return (hint) => (hint === 'number') ? null : (fn.open || "");
       }
       const val = fn[prop];
       return typeof val === 'function' ? val.bind(fn) : val;

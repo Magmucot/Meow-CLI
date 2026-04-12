@@ -200,7 +200,7 @@ function printHelp(cfg) {
 // ─── Stats (Claude Code style — tabular, clean) ────────────────────────────
 
 function printStats(cfg, currentChat, historyLen, pinsCount = 0) {
-  console.log("");
+  log.br();
   const profile = cfg.profiles[cfg.profile] || cfg.profiles.default;
   const vac = cfg.vacuum || {};
   const pluginSummary = getPluginSummary(cfg);
@@ -226,9 +226,7 @@ function printStats(cfg, currentChat, historyLen, pinsCount = 0) {
 
   console.log(`  ${ACCENT}${C.bold}${t(cfg, "stats_title")}${C.reset}`);
   console.log(`  ${MUTED}${"─".repeat(50)}${C.reset}`);
-  for (const [label, value] of rows) {
-    console.log(`  ${TEXT_DIM}${label.padEnd(18)}${C.reset} ${value}`);
-  }
+  table(rows.map(([label, value]) => [`${TEXT_DIM}${label}${C.reset}`, value]), { colWidths: [18] });
   console.log(`  ${MUTED}${"─".repeat(50)}${C.reset}\n`);
 }
 

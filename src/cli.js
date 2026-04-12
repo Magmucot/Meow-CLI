@@ -257,18 +257,6 @@ async function main() {
 
   // Show banner
   ctx.refreshBanner();
-  intro(ACCENT.bold("MEOW CLI"));
-
-  // Show tips
-  note(
-    `${t(ctx.cfg, "tips_body")}\n` +
-    `• /lead — AI lead developer mode\n` +
-    `• /delegate <task> — parallel sub-agents\n` +
-    `• /memory — project memory (RAG)\n` +
-    `• /pair — pair programming mode\n` +
-    `• /ci — CI/CD management`,
-    t(ctx.cfg, "tips_title")
-  );
 
   await loadPlugins(ctx.cfg, ctx);
 

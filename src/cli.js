@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { askInput } from "./modules/cli-input.js";
+import { intro, outro, note } from "@clack/prompts";
 import { createCliContext, registerSignalHandlers } from "./modules/cli-context.js";
 import { runCommandHandlers } from "./modules/commands/index.js";
 import {

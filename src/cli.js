@@ -378,7 +378,7 @@ async function main() {
           if (data.usage) {
             costTracker.record(data.usage, ctx.cfg.model);
             const costStr = costTracker.formatInline(data.usage, ctx.cfg.model);
-            console.log(`  ${MUTED}${costStr}${C.reset}`);
+            console.log(`  ${MUTED(costStr)}`);
           }
 
           ctx.messages.push(msg);

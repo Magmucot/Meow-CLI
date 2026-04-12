@@ -1,6 +1,10 @@
 import readline from "readline";
 import { C, MUTED, ACCENT, TEXT, TEXT_DIM, SUCCESS, AI_GRADIENT } from "./ui.js";
 
+/**
+ * List of available commands for tab-completion.
+ * @type {Array<string>}
+ */
 const COMMANDS = [
   "/help", "/clear", "/exit", "/stats", "/config", "/model", "/profile",
   "/chat list", "/chat new", "/chat use", "/chat delete",
@@ -13,6 +17,11 @@ const COMMANDS = [
   "/incognito", "/routing", "/preview"
 ];
 
+/**
+ * Reads multi-line input from the terminal with basic syntax highlighting and autocomplete.
+ * @param {string} promptTitle - Title to display above the input area.
+ * @returns {Promise<string>} The user's input.
+ */
 const readMultilineInput = (promptTitle) => new Promise(resolve => {
   const promptPrefix = `${MUTED("│")}  `;
   console.log(`\n${ACCENT("◇")}  ${TEXT_DIM(promptTitle)} ${MUTED("(Enter: newline, Shift+Enter: send)")}`);
@@ -46,11 +55,9 @@ const readMultilineInput = (promptTitle) => new Promise(resolve => {
     // Backspace
     if (key.name === 'backspace') {
       if (buffer.length > 0) {
-        // If we are deleting a newline, we need to move up
         if (buffer.endsWith('\n')) {
           buffer = buffer.slice(0, -1);
           readline.moveCursor(process.stdout, 0, -1);
-          // Move to the end of the line (approximate)
           readline.cursorTo(process.stdout, 100); 
         } else {
           buffer = buffer.slice(0, -1);
@@ -77,7 +84,6 @@ const readMultilineInput = (promptTitle) => new Promise(resolve => {
     // Normal chars
     if (str && !key.ctrl && !key.meta) {
       buffer += str;
-      // Simple syntax highlighting for commands
       if (buffer.startsWith('/') && !buffer.includes(' ')) {
         process.stdout.write(ACCENT(str));
       } else {
@@ -96,6 +102,11 @@ const readMultilineInput = (promptTitle) => new Promise(resolve => {
   process.stdin.on("keypress", onKey);
 });
 
+/**
+ * Wrapper for readMultilineInput.
+ * @param {string} promptTitle - Prompt title.
+ * @returns {Promise<string>}
+ */
 const askInput = (promptTitle) => readMultilineInput(promptTitle);
 
 export { askInput, readMultilineInput };

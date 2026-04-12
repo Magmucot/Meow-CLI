@@ -13,20 +13,38 @@ const pluginState = {
   commands: [],
 };
 
+/**
+ * Returns the directories where plugins are searched.
+ * @returns {Array<string>}
+ */
 function getPluginDirs() {
   return [PLUGIN_DIR, path.join(process.cwd(), "plugins")];
 }
 
+/**
+ * Resets the internal plugin state.
+ */
 function resetPluginState() {
   pluginState.plugins.clear();
   pluginState.commands = [];
 }
 
+/**
+ * Checks if a plugin is enabled in the configuration.
+ * @param {Object} cfg - Configuration object.
+ * @param {string} name - Plugin name.
+ * @returns {boolean}
+ */
 function isPluginEnabled(cfg, name) {
   const disabled = cfg?.plugins?.disabled || [];
   return !disabled.includes(name);
 }
 
+/**
+ * Registers a command from a plugin.
+ * @param {string} pluginName - Name of the plugin providing the command.
+ * @param {Object} command - Command definition.
+ */
 function registerCommand(pluginName, command) {
   if (!command || !command.name || typeof command.run !== "function") return;
   const clean = command.name.replace(/^\//, "");
@@ -40,6 +58,12 @@ function registerCommand(pluginName, command) {
   });
 }
 
+/**
+ * Builds the API object passed to plugins.
+ * @param {Object} ctx - CLI context.
+ * @param {string} pluginName - Plugin name.
+ * @returns {Object} Plugin API.
+ */
 function buildPluginApi(ctx, pluginName) {
   return {
     registerCommand: (cmd) => registerCommand(pluginName, cmd),
@@ -49,6 +73,12 @@ function buildPluginApi(ctx, pluginName) {
   };
 }
 
+/**
+ * Loads a single plugin file.
+ * @param {string} file - Full path to the plugin file.
+ * @param {Object} ctx - CLI context.
+ * @returns {Promise<Object>} Object containing the plugin instance and its API.
+ */
 async function loadPluginFile(file, ctx) {
   const ext = path.extname(file).toLowerCase();
   let mod;
@@ -67,6 +97,12 @@ async function loadPluginFile(file, ctx) {
   return { plugin: raw || {}, api };
 }
 
+/**
+ * Loads all plugins from the plugin directories.
+ * @param {Object} cfg - Configuration object.
+ * @param {Object} ctx - CLI context.
+ * @returns {Promise<Object>} The updated plugin state.
+ */
 async function loadPlugins(cfg, ctx) {
   resetPluginState();
   const dirs = getPluginDirs();
@@ -88,16 +124,14 @@ async function loadPlugins(cfg, ctx) {
         if (pluginState.plugins.has(name)) {
           log.warn(`Plugin '${name}' already loaded. Skipping ${file}.`);
           continue;
-        }
-        const enabled = isPluginEnabled(cfg, name);
+        }\n        const enabled = isPluginEnabled(cfg, name);
         const info = {
           name,
           version: plugin?.version || "0.0.0",
           description: plugin?.description || "",
           file: full,
           enabled,
-        };
-        pluginState.plugins.set(name, info);
+        };\n        pluginState.plugins.set(name, info);
         if (!enabled) continue;
         if (Array.isArray(plugin?.commands)) {
           for (const cmd of plugin.commands) registerCommand(name, cmd);
@@ -105,8 +139,7 @@ async function loadPlugins(cfg, ctx) {
         if (typeof plugin?.onLoad === "function") {
           await plugin.onLoad(api);
         }
-      } catch (e) {
-        const info = { name, version: "0.0.0", description: "", file: full, enabled: false, error: e.message };
+      } catch (e) {\n        const info = { name, version: "0.0.0", description: "", file: full, enabled: false, error: e.message };
         pluginState.plugins.set(name, info);
         log.err(`Plugin load failed (${file}): ${e.message}`);
       }
@@ -115,14 +148,28 @@ async function loadPlugins(cfg, ctx) {
   return pluginState;
 }
 
+/**
+ * Lists all registered plugins.
+ * @returns {Array<Object>}
+ */
 function listPlugins() {
   return Array.from(pluginState.plugins.values());
 }
 
+/**
+ * Lists all commands registered by plugins.
+ * @returns {Array<Object>}
+ */
 function listPluginCommands() {
   return pluginState.commands.slice();
 }
 
+/**
+ * Attempts to execute a plugin command based on user input.
+ * @param {Object} ctx - CLI context.
+ * @param {string} input - User input string.
+ * @returns {Promise<Object|null>} Command result or null if no command matched.
+ */
 async function runPluginCommand(ctx, input) {
   for (const cmd of pluginState.commands) {
     if (typeof cmd.match === "function") {
@@ -141,6 +188,12 @@ async function runPluginCommand(ctx, input) {
   return null;
 }
 
+/**
+ * Normalizes the result of a plugin command execution.
+ * @param {any} result - Raw result from command.run.
+ * @returns {Object} Normalized result object.
+ * @private
+ */
 function normalizeResult(result) {
   if (!result) return { handled: true };
   if (typeof result === "string") return { handled: true, continue: true, input: result };
@@ -150,12 +203,22 @@ function normalizeResult(result) {
   return { handled: true };
 }
 
+/**
+ * Enables a plugin in the configuration.
+ * @param {Object} cfg - Configuration object.
+ * @param {string} name - Plugin name.
+ */
 function enablePlugin(cfg, name) {
   const disabled = new Set(cfg.plugins?.disabled || []);
   disabled.delete(name);
   cfg.plugins = { ...(cfg.plugins || {}), disabled: Array.from(disabled) };
 }
 
+/**
+ * Disables a plugin in the configuration.
+ * @param {Object} cfg - Configuration object.
+ * @param {string} name - Plugin name.
+ */
 function disablePlugin(cfg, name) {
   const disabled = new Set(cfg.plugins?.disabled || []);
   disabled.add(name);

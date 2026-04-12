@@ -1,5 +1,6 @@
 
 import { Chalk } from 'chalk';
+const chalk = new Chalk({level: 3});
 
 const c = new Chalk({level: 3});
 console.log('c.red.open:', JSON.stringify(c.red.open));

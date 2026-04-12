@@ -1,13 +1,15 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// commands/context.js — /context command (MEOW.md management)
-// ═══════════════════════════════════════════════════════════════════════════
-
 import { execSync } from "child_process";
 import {
   log, C, MUTED,
   printContext, editContext, buildSystemPrompt, loadProjectContext,
 } from "../../core.js";
 
+/**
+ * Handles the /context command for managing project-specific AI instructions (MEOW.md).
+ * @param {Object} ctx - CLI context.
+ * @param {string} input - User input.
+ * @returns {Promise<Object|null>}
+ */
 const handleContext = async (ctx, input) => {
   if (!input.startsWith("/context")) return null;
 
@@ -24,7 +26,6 @@ const handleContext = async (ctx, input) => {
     log.info(`Opening ${filePath} in ${editor}...`);
     try {
       execSync(`${editor} ${JSON.stringify(filePath)}`, { stdio: "inherit" });
-      // Reload context into system prompt
       const contextParts = loadProjectContext();
       const basePrompt = ctx.cfg.profiles[ctx.cfg.profile]?.system || "";
       ctx.messages[0] = { role: "system", content: buildSystemPrompt(basePrompt, contextParts) };

@@ -1,8 +1,3 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// agents/lead-dev.js — AI Lead Developer Mode (Autopilot 2.0)
-// Self-directed continuous improvement with quality gates
-// ═══════════════════════════════════════════════════════════════════════════
-
 import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";

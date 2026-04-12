@@ -3,11 +3,6 @@
  * Provides desktop notifications, live preview, and pair programming mode.
  */
 
-// ═══════════════════════════════════════════════════════════════════════════
-// smart/ux.js — Enhanced UX Features
-// Desktop notifications, live preview, pair programming mode
-// ═══════════════════════════════════════════════════════════════════════════
-
 import { exec, execSync } from "child_process";
 import path from "path";
 import os from "os";
@@ -15,8 +10,6 @@ import {
   log, C, ACCENT, ACCENT2, MUTED, TEXT, TEXT_DIM, SUCCESS, ERROR, WARNING, INFO, TOOL_CLR, box, COLS,
   colorDiff, progressBar
 } from "../ui.js";
-
-// ─── Desktop Notifications ──────────────────────────────────────────────────
 
 function notify(title, message, options = {}) {
   const { sound = false, urgency = "normal" } = options;
@@ -50,8 +43,6 @@ function notifyError(error) {
 function notifyAutopilotDone(stats) {
   notify("Meow CLI 🤖", `Autopilot done: ${stats.completed || 0} tasks, ${stats.duration || ""}`, { sound: true });
 }
-
-// ─── Live Preview for Frontend ──────────────────────────────────────────────
 
 class LivePreview {
   constructor() {
@@ -98,8 +89,6 @@ class LivePreview {
   }
 }
 
-// ─── Pair Programming Mode ──────────────────────────────────────────────────
-
 const PairMode = {
   OFF: "off",
   VERBOSE: "verbose",
@@ -131,8 +120,6 @@ class PairProgrammer {
     log.ok(`Pair mode: ${icons[this.mode] || ""} ${this.mode}`);
   }
 }
-
-// ─── Smart Tab Completion ───────────────────────────────────────────────────
 
 const ALL_COMMANDS = [
   "/help", "/clear", "/exit", "/model", "/profile", "/temp", "/key", "/url",
@@ -186,8 +173,6 @@ function complete(input) {
   if (input.startsWith("/")) return completeCommand(input);
   return completeFilePath(input);
 }
-
-// ─── Singleton ──────────────────────────────────────────────────────────────
 
 let _preview = null;
 let _pair = null;

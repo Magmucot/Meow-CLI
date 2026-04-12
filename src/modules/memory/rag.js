@@ -2,13 +2,6 @@
  * RAG Memory module for Meow CLI.
  * Provides long-term memory, cross-project learning, and adaptive preferences using TF-IDF similarity.
  */
-
-// ═══════════════════════════════════════════════════════════════════════════
-// memory/rag.js — Project Memory & RAG System
-// Long-term memory, cross-project learning, adaptive preferences
-// Zero native dependencies — TF-IDF similarity + JSON store
-// ═══════════════════════════════════════════════════════════════════════════
-
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
@@ -21,8 +14,6 @@ const GLOBAL_MEMORY = path.join(MEMORY_DIR, "global.json");
 const MAX_MEMORIES = 1000;
 const MAX_SEARCH_RESULTS = 10;
 const SIMILARITY_THRESHOLD = 0.15;
-
-// ─── Text Processing (TF-IDF lite) ─────────────────────────────────────────
 
 const STOP_WORDS = new Set(["the", "a", "an", "is", "are", "was", "were", "be", "been",
   "being", "have", "has", "had", "do", "does", "did", "will", "would", "could",
@@ -63,8 +54,6 @@ function cosineSimilarity(tfA, tfB) {
   return mag === 0 ? 0 : dot / mag;
 }
 
-// ─── Memory Types ───────────────────────────────────────────────────────────
-
 const MemoryType = {
   DECISION: "decision",
   ERROR_FIX: "error_fix",
@@ -74,8 +63,6 @@ const MemoryType = {
   ARCHITECTURE: "architecture",
   REJECTION: "rejection",
 };
-
-// ─── Memory Entry ───────────────────────────────────────────────────────────
 
 function createMemory(type, content, metadata = {}) {
   const tokens = tokenize(content);
@@ -102,8 +89,6 @@ function getProjectId() {
     return path.basename(cwd);
   }
 }
-
-// ─── Memory Store ───────────────────────────────────────────────────────────
 
 class MemoryStore {
   constructor() {
@@ -318,8 +303,6 @@ class MemoryStore {
   }
 }
 
-// ─── Auto-Learn Hooks ───────────────────────────────────────────────────────
-
 class MemoryHooks {
   constructor(store) {
     this.store = store;
@@ -367,8 +350,6 @@ class MemoryHooks {
     }
   }
 }
-
-// ─── Singleton ──────────────────────────────────────────────────────────────
 
 let _store = null;
 let _hooks = null;

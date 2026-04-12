@@ -11,17 +11,7 @@ const color = (hex) => {
       if (prop === 'toString') return () => fn.open || "";
       if (prop === Symbol.toPrimitive) return (hint) => (hint === 'number') ? null : (fn.open || "");
       const val = fn[prop];
-      if (typeof val === 'function') {
-        const bound = val.bind(fn);
-        return (...args) => {
-            const result = bound(...args);
-            if (typeof result === 'function' && result.open !== undefined) {
-                // It's a chained chalk function
-                // We should probably wrap it too, but let's see
-            }
-            return result;
-        };
-      }
+      if (typeof val === 'function') return val.bind(fn);
       return val;
     }
   });

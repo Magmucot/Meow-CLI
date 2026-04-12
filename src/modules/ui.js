@@ -73,7 +73,7 @@ marked.use(markedTerminal({
 function box(content, { title = "", color = "#CC7832", width = COLS - 2, padding = 1, style = "round" } = {}) {
   return boxen(content, {
     title,
-    borderColor: color?.hexCode || color || "#CC7832",
+    borderColor: color?.hexCode || (typeof color === 'string' ? color : \"#CC7832\"),
     borderStyle: style,
     padding,
     width,

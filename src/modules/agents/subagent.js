@@ -1,3 +1,8 @@
+/**
+ * Sub-agent module for autonomous task execution and delegation.
+ * Provides isolated environments, caching, and parallel execution coordination.
+ */
+
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
@@ -284,17 +289,20 @@ class SubAgent {
         this.env.recordUsage(usage.total_tokens || 0, this.cfg.model);
 
         const msg = data.choices?.[0]?.message;
-        if (!msg) break;\n        if (msg.tool_calls && msg.tool_calls.length > 0) {
+        if (!msg) break;
+        if (msg.tool_calls && msg.tool_calls.length > 0) {
           this.messages.push(msg);
           for (const call of msg.tool_calls) {
             const name = call.function.name;
             let args = {};
-            try { args = JSON.parse(call.function.arguments); } catch {}\n            this.toolCalls++;
+            try { args = JSON.parse(call.function.arguments); } catch {}
+            this.toolCalls++;
             const result = await this._executeTool(name, args);
             this.messages.push({ role: "tool", tool_call_id: call.id, content: result || "" });
           }
           continue;
-        }\n        const content = msg.content || "";
+        }
+        const content = msg.content || "";
         this.messages.push(msg);
 
         if (content.includes("✅ DONE:") || content.includes("DONE:")) {
@@ -306,7 +314,8 @@ class SubAgent {
           this.status = "blocked";
           this.result = content;
           break;
-        }\n        if (this.iterations >= this.maxIterations) {
+        }
+        if (this.iterations >= this.maxIterations) {
           this.status = "max_iterations";
           this.result = content || "Max iterations reached without completion";
         }
@@ -481,7 +490,9 @@ function printDelegationResults(results, stats, elapsed) {
   console.log(`  ${TOOL_CLR}┃${C.reset} ${MUTED}${stats.success}/${stats.total} ok · ${stats.tokens} tokens · $${stats.cost} · ${formatDuration(elapsed)}${C.reset}`);
 }
 
+/** Resets the global sub-agent cache. */
 function resetCache() { _globalCache = new SubagentCache(); }
+/** @returns {Object} Global cache statistics. */
 function getCacheStats() { return _globalCache.getStats(); }
 
 export { SubAgent, SubagentCache, AgentCoordinator, IsolatedEnv, delegateTask, resetCache, getCacheStats };

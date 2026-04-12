@@ -3,13 +3,22 @@ import path from "path";
 import { log } from "./ui.js";
 import { ASSIST_DIR, CONF_FILE, HIST_FILE, PIN_FILE, UNDO_FILE, LOG_DIR, LEGACY_CONF_FILE, LEGACY_HIST_FILE, LEGACY_LOG_DIR, DATA_DIR, DEFAULT_CONFIG, PLUGIN_DIR } from "./config.js";
 
-// ─── Persistence ────────────────────────────────────────────────────────────
-
+/**
+ * Loads and parses a JSON file.
+ * @param {string} file - Path to the JSON file.
+ * @param {any} fallback - Fallback value if file doesn't exist or is invalid.
+ * @returns {any} Parsed data or fallback.
+ */
 function loadJson(file, fallback) {
   try { return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : fallback; }
   catch { return fallback; }
 }
 
+/**
+ * Serializes and saves data to a JSON file.
+ * @param {string} file - Path to the JSON file.
+ * @param {any} data - Data to save.
+ */
 function saveJson(file, data) {
   try {
     fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -18,6 +27,12 @@ function saveJson(file, data) {
   catch (e) { log.err(`Save error: ${e.message}`); }
 }
 
+/**
+ * Normalizes an assistant profile from raw data.
+ * @param {string} name - Profile name.
+ * @param {any} data - Profile data (string prompt or object).
+ * @returns {Object|null} Normalized profile object or null.
+ */
 function normalizeAssistantProfile(name, data) {
   if (!name || !data) return null;
   let system = "";
@@ -34,6 +49,10 @@ function normalizeAssistantProfile(name, data) {
   return { name, profile: { system, temperature } };
 }
 
+/**
+ * Loads all assistant profiles from the assistants directory.
+ * @returns {Object} Map of profile names to profile objects.
+ */
 function loadAssistentsFromDir() {
   const profiles = {};
   try { fs.mkdirSync(ASSIST_DIR, { recursive: true }); } catch {}
@@ -65,6 +84,13 @@ function loadAssistentsFromDir() {
   return profiles;
 }
 
+/**
+ * Saves a new assistant profile to a JSON file.
+ * @param {string} name - Profile name.
+ * @param {string} system - System prompt.
+ * @param {number} temperature - Model temperature.
+ * @returns {string} Path to the saved file.
+ */
 function saveAssistantProfile(name, system, temperature) {
   if (!name || !system) throw new Error("Name and system required");
   fs.mkdirSync(ASSIST_DIR, { recursive: true });
@@ -75,6 +101,10 @@ function saveAssistantProfile(name, system, temperature) {
   return file;
 }
 
+/**
+ * Loads application configuration and merges with defaults and assistant profiles.
+ * @returns {Object} Complete configuration object.
+ */
 function loadConfig() {
   const cfg = loadJson(CONF_FILE, DEFAULT_CONFIG);
   const assistentProfiles = loadAssistentsFromDir();
@@ -89,6 +119,10 @@ function loadConfig() {
   };
 }
 
+/**
+ * Saves configuration to file, excluding dynamic assistant profiles.
+ * @param {Object} cfg - Configuration to save.
+ */
 function saveConfig(cfg) {
   const assistentProfiles = loadAssistentsFromDir();
   const cleanedProfiles = { ...cfg.profiles };
@@ -98,6 +132,10 @@ function saveConfig(cfg) {
   saveJson(CONF_FILE, { ...cfg, profiles: cleanedProfiles });
 }
 
+/**
+ * Loads chat history state.
+ * @returns {Object} History state object.
+ */
 function loadHistoryState() {
   const fallback = { current: "default", chats: { default: [] } };
   const data = loadJson(HIST_FILE, fallback);
@@ -111,14 +149,22 @@ function loadHistoryState() {
   return fallback;
 }
 
+/** @returns {Array<Object>} List of pinned messages */
 function loadPins() {
   return loadJson(PIN_FILE, []);
 }
 
+/** @param {Array<Object>} pins - List of pinned messages */
 function savePins(pins) {
   saveJson(PIN_FILE, pins || []);
 }
 
+/**
+ * Applies chat vacuum (history cleanup) based on configuration.
+ * @param {Array<Object>} history - Current chat history.
+ * @param {Object} cfg - Configuration.
+ * @returns {Array<Object>} Cleaned history.
+ */
 function applyVacuum(history, cfg) {
   const vac = cfg.vacuum || {};
   if (!vac.enabled) return history;
@@ -131,16 +177,22 @@ function applyVacuum(history, cfg) {
   return [...head, ...keepTail];
 }
 
+/** @param {Object} state - History state to save */
 function saveHistoryState(state) { saveJson(HIST_FILE, state); }
 
+/** @returns {Array<Object>} List of undo checkpoints */
 function loadUndoState() {
   return loadJson(UNDO_FILE, []);
 }
 
+/** @param {Array<Object>} state - Undo state to save */
 function saveUndoState(state) {
   saveJson(UNDO_FILE, state);
 }
 
+/**
+ * Migrates legacy (pre-v2) data to the new data directory structure.
+ */
 function migrateLegacyData() {
   try {
     fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -172,6 +224,5 @@ function migrateLegacyData() {
     log.dim(`Legacy data migration skipped: ${e.message}`);
   }
 }
-
 
 export { loadJson, saveJson, normalizeAssistantProfile, loadAssistentsFromDir, saveAssistantProfile, loadConfig, saveConfig, loadHistoryState, loadPins, savePins, applyVacuum, saveHistoryState, loadUndoState, saveUndoState, migrateLegacyData };

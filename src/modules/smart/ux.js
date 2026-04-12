@@ -154,7 +154,6 @@ function completeCommand(partial) {
 }
 
 function completeFilePath(partial) {
-  const fs = require("fs");
   try {
     const dir = path.dirname(partial) || ".";
     const prefix = path.basename(partial);

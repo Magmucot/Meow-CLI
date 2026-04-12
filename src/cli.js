@@ -308,10 +308,6 @@ async function main() {
 
     ctx.messages.push(userMsg);
 
-    console.log("");
-    if (allImages.length > 0) console.log(`  ${USER_CLR.bold("You")} ${IMG_CLR("🖼 ×" + allImages.length)}`);
-    else console.log(`  ${USER_CLR.bold("You")}`);
-
     // ── Auto-compact check ──
     const compactCheck = shouldAutoCompact(ctx.messages);
     if (compactCheck.shouldCompact) {

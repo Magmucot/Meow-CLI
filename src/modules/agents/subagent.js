@@ -1,8 +1,3 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// agents/subagent.js — Hierarchical Sub-Agent System
-// Parallel task delegation, isolated environments, result caching
-// ═══════════════════════════════════════════════════════════════════════════
-
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
@@ -17,8 +12,9 @@ const MAX_DEPTH = 3;
 const MAX_PARALLEL = 8;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
-// ─── Result Cache ───────────────────────────────────────────────────────────
-
+/**
+ * Caches results of sub-agent tasks to avoid redundant execution.
+ */
 class SubagentCache {
   constructor() {
     this.entries = new Map();
@@ -26,11 +22,18 @@ class SubagentCache {
     this.misses = 0;
   }
 
+  /** @private */
   _hash(task, toolsUsed) {
     const key = JSON.stringify({ task: task.slice(0, 500), tools: toolsUsed });
     return crypto.createHash("sha256").update(key).digest("hex").slice(0, 16);
   }
 
+  /**
+   * Retrieves a cached result if available and not expired.
+   * @param {string} task - The task description.
+   * @param {Array<string>} [toolsUsed=[]] - Tools used for the task.
+   * @returns {Object|null} Cached result or null.
+   */
   get(task, toolsUsed = []) {
     const hash = this._hash(task, toolsUsed);
     const entry = this.entries.get(hash);
@@ -44,6 +47,12 @@ class SubagentCache {
     return entry.result;
   }
 
+  /**
+   * Stores a task result in the cache.
+   * @param {string} task - Task description.
+   * @param {Array<string>} toolsUsed - Tools used.
+   * @param {Object} result - Task result.
+   */
   set(task, toolsUsed, result) {
     const hash = this._hash(task, toolsUsed);
     this.entries.set(hash, { result, time: Date.now(), task: task.slice(0, 200) });
@@ -53,53 +62,83 @@ class SubagentCache {
     }
   }
 
+  /**
+   * Returns cache performance statistics.
+   * @returns {Object}
+   */
   getStats() {
-    return { entries: this.entries.size, hits: this.hits, misses: this.misses,
-      hitRate: this.hits + this.misses > 0 ? (this.hits / (this.hits + this.misses) * 100).toFixed(1) + "%" : "0%" };
+    return {
+      entries: this.entries.size,
+      hits: this.hits,
+      misses: this.misses,
+      hitRate: this.hits + this.misses > 0 ? (this.hits / (this.hits + this.misses) * 100).toFixed(1) + "%" : "0%"
+    };
   }
 }
 
-// ─── Isolated Environment ───────────────────────────────────────────────────
-
+/**
+ * Represents an isolated environment for a sub-agent to operate in.
+ */
 class IsolatedEnv {
+  /**
+   * @param {string} parentCwd - Current working directory of the parent.
+   * @param {number} depth - Recursion depth.
+   * @param {Object} budget - Resource budget (tokens, cost, tools).
+   */
   constructor(parentCwd, depth, budget) {
     this.id = crypto.randomUUID().slice(0, 8);
     this.parentCwd = parentCwd;
     this.tmpDir = path.join(os.tmpdir(), `meow-agent-${this.id}`);
     this.depth = depth;
-    this.budget = { maxTokens: budget.maxTokens || 20000, maxCost: budget.maxCost || 1.0,
-      usedTokens: 0, usedCost: 0 };
+    this.budget = {
+      maxTokens: budget.maxTokens || 20000,
+      maxCost: budget.maxCost || 1.0,
+      usedTokens: 0,
+      usedCost: 0
+    };
     this.toolsAllowed = new Set(budget.tools || ["list_dir", "read_file", "grep_search", "patch_file", "write_file", "run_shell"]);
     this.filesModified = [];
     this.startTime = Date.now();
   }
 
+  /** Sets up the temporary directory */
   setup() {
     try { fs.mkdirSync(this.tmpDir, { recursive: true }); } catch {}
   }
 
+  /** Cleans up the temporary directory */
   cleanup() {
     try { fs.rmSync(this.tmpDir, { recursive: true, force: true }); } catch {}
   }
 
+  /** @returns {boolean} */
   isToolAllowed(name) { return this.toolsAllowed.has(name); }
 
+  /** Records resource usage */
   recordUsage(tokens, model) {
     this.budget.usedTokens += tokens;
     const price = getModelPrice(model);
     this.budget.usedCost += (tokens * (price.input + price.output) / 2) / 1_000_000;
   }
 
+  /** @returns {boolean} */
   isBudgetExceeded() {
     return this.budget.usedTokens > this.budget.maxTokens || this.budget.usedCost > this.budget.maxCost;
   }
 
+  /** @returns {number} */
   getElapsed() { return Date.now() - this.startTime; }
 }
 
-// ─── Sub-Agent ──────────────────────────────────────────────────────────────
-
+/**
+ * A sub-agent that executes a specific task autonomously.
+ */
 class SubAgent {
+  /**
+   * @param {string} task - Task description.
+   * @param {Object} cfg - Global configuration.
+   * @param {Object} [options={}] - Execution options.
+   */
   constructor(task, cfg, options = {}) {
     this.task = task;
     this.cfg = { ...cfg, auto_yes: true };
@@ -119,6 +158,7 @@ class SubAgent {
     this.iterations = 0;
   }
 
+  /** @private */
   _buildSystemPrompt() {
     return [
       "You are a focused sub-agent. Complete your specific task efficiently.",
@@ -137,6 +177,7 @@ class SubAgent {
     ].join("\n");
   }
 
+  /** @private */
   _getFilteredTools() {
     const allowed = this.env.toolsAllowed;
     let tools = TOOLS.filter(t => allowed.has(t.function.name));
@@ -170,6 +211,7 @@ class SubAgent {
     return tools;
   }
 
+  /** @private */
   async _executeTool(name, args) {
     if (name === "delegate_task") {
       return await this._handleDelegation(args);
@@ -180,6 +222,7 @@ class SubAgent {
     return await executeTool(name, args, this.cfg);
   }
 
+  /** @private */
   async _handleDelegation(args) {
     const tasks = args.tasks || [];
     if (tasks.length === 0) return "❌ No tasks provided";
@@ -208,6 +251,10 @@ class SubAgent {
     return `Sub-agent results (${results.filter(r => r.status === "done").length}/${results.length} success):\n${summary}`;
   }
 
+  /**
+   * Runs the sub-agent until the task is complete, blocked, or budget is exceeded.
+   * @returns {Promise<Object>} Execution result summary.
+   */
   async run() {
     this.status = "running";
     this.env.setup();
@@ -237,22 +284,17 @@ class SubAgent {
         this.env.recordUsage(usage.total_tokens || 0, this.cfg.model);
 
         const msg = data.choices?.[0]?.message;
-        if (!msg) break;
-
-        if (msg.tool_calls && msg.tool_calls.length > 0) {
+        if (!msg) break;\n        if (msg.tool_calls && msg.tool_calls.length > 0) {
           this.messages.push(msg);
           for (const call of msg.tool_calls) {
             const name = call.function.name;
             let args = {};
-            try { args = JSON.parse(call.function.arguments); } catch {}
-            this.toolCalls++;
+            try { args = JSON.parse(call.function.arguments); } catch {}\n            this.toolCalls++;
             const result = await this._executeTool(name, args);
             this.messages.push({ role: "tool", tool_call_id: call.id, content: result || "" });
           }
           continue;
-        }
-
-        const content = msg.content || "";
+        }\n        const content = msg.content || "";
         this.messages.push(msg);
 
         if (content.includes("✅ DONE:") || content.includes("DONE:")) {
@@ -264,9 +306,7 @@ class SubAgent {
           this.status = "blocked";
           this.result = content;
           break;
-        }
-
-        if (this.iterations >= this.maxIterations) {
+        }\n        if (this.iterations >= this.maxIterations) {
           this.status = "max_iterations";
           this.result = content || "Max iterations reached without completion";
         }
@@ -294,9 +334,14 @@ class SubAgent {
   }
 }
 
-// ─── Agent Coordinator ──────────────────────────────────────────────────────
-
+/**
+ * Coordinates execution of multiple sub-agents, potentially in parallel.
+ */
 class AgentCoordinator {
+  /**
+   * @param {Object} cfg - Global configuration.
+   * @param {SubagentCache|null} [cache=null] - Optional cache instance.
+   */
   constructor(cfg, cache = null) {
     this.cfg = cfg;
     this.cache = cache || new SubagentCache();
@@ -304,6 +349,11 @@ class AgentCoordinator {
     this.completedResults = [];
   }
 
+  /**
+   * Runs multiple tasks in parallel batches.
+   * @param {Array<Object>} taskDefs - Definitions of tasks to run.
+   * @returns {Promise<Array<Object>>} List of task results.
+   */
   async runParallel(taskDefs) {
     const results = [];
     const batches = [];
@@ -349,21 +399,36 @@ class AgentCoordinator {
     return results;
   }
 
+  /**
+   * Returns coordination statistics.
+   * @returns {Object}
+   */
   getStats() {
     const total = this.completedResults.length;
     const success = this.completedResults.filter(r => r.status === "done").length;
     const tokens = this.completedResults.reduce((s, r) => s + (r.tokensUsed || 0), 0);
     const cost = this.completedResults.reduce((s, r) => s + (r.costUsd || 0), 0);
     const elapsed = this.completedResults.reduce((s, r) => s + (r.elapsed || 0), 0);
-    return { total, success, failed: total - success, tokens, cost: cost.toFixed(4),
-      elapsed: formatDuration(elapsed), cacheStats: this.cache.getStats() };
+    return {
+      total,
+      success,
+      failed: total - success,
+      tokens,
+      cost: cost.toFixed(4),
+      elapsed: formatDuration(elapsed),
+      cacheStats: this.cache.getStats()
+    };
   }
 }
 
-// ─── delegate_task Tool Implementation ──────────────────────────────────────
-
 let _globalCache = new SubagentCache();
 
+/**
+ * Implementation of the delegate_task tool.
+ * @param {Object} args - Tool arguments.
+ * @param {Object} cfg - Global configuration.
+ * @returns {Promise<string>} Formatted summary of all sub-agent results.
+ */
 async function delegateTask(args, cfg) {
   const tasks = args.tasks || [];
   if (tasks.length === 0) return "❌ No tasks to delegate";
@@ -396,6 +461,7 @@ async function delegateTask(args, cfg) {
   return `${output}\n\n--- Stats: ${stats.success}/${stats.total} ok, ${stats.tokens} tokens, $${stats.cost}, ${formatDuration(elapsed)}, cache: ${stats.cacheStats.hitRate} hits`;
 }
 
+/** @private */
 function printDelegationHeader(tasks) {
   console.log(`\n  ${ACCENT}${C.bold}🔀 Delegating ${tasks.length} subtask${tasks.length > 1 ? "s" : ""}${C.reset}`);
   for (let i = 0; i < tasks.length; i++) {
@@ -403,6 +469,7 @@ function printDelegationHeader(tasks) {
   }
 }
 
+/** @private */
 function printDelegationResults(results, stats, elapsed) {
   console.log(`  ${TOOL_CLR}┃${C.reset}`);
   for (let i = 0; i < results.length; i++) {

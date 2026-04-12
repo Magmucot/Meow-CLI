@@ -11,16 +11,17 @@ import { log, C, SUCCESS, ERROR, WARNING, MUTED, TEXT, TEXT_DIM, ACCENT, box, CO
 // ─── Permission Levels ──────────────────────────────────────────────────────
 
 const LEVEL = {
-  ASK:   "ask",
-  ALLOW: "allow",
-  DENY:  "deny",
+  ASK:           "ask",
+  ALLOW:         "allow",
+  DENY:          "deny",
+  SESSION_ALLOW: "session_allow", // Allowed for the duration of the process
 };
 
 // Tools that are always safe (read-only, no side effects)
-const SAFE_TOOLS = new Set(["list_dir", "read_file", "grep_search", "ask_user", "confirm", "choose"]);
+const SAFE_TOOLS = new Set(["list_dir", "read_file", "grep_search", "ask_user", "confirm", "choose", "git_status", "git_log", "git_diff"]);
 
 // Tools that require explicit permission
-const DANGEROUS_TOOLS = new Set(["run_shell", "write_file", "patch_file", "http_request", "web_search"]);
+const DANGEROUS_TOOLS = new Set(["run_shell", "write_file", "patch_file", "http_request", "web_search", "git_commit", "git_branch", "ci_pipeline"]);
 
 // ─── Pattern Matching ───────────────────────────────────────────────────────
 
@@ -129,13 +130,18 @@ class PermissionStore {
     if (SAFE_TOOLS.has(toolName)) return LEVEL.ALLOW;
 
     // Check session overrides first (most recent)
-    const sessionKey = `${toolName}:${args.path || args.cmd || "*"}`;
+    // We check tool-only session override first
+    if (this.sessionOverrides.has(toolName)) {
+      return this.sessionOverrides.get(toolName);
+    }
+
+    const filePath = args.path || args.cmd || args.url || args.file || null;
+    const sessionKey = `${toolName}:${filePath || "*"}`;
     if (this.sessionOverrides.has(sessionKey)) {
       return this.sessionOverrides.get(sessionKey);
     }
 
     // Check persistent rules (most specific first)
-    const filePath = args.path || args.cmd || null;
 
     // 1. Exact tool+path match
     for (const rule of this.rules) {
@@ -166,8 +172,13 @@ class PermissionStore {
 
   // Remember a session-level decision
   rememberSession(toolName, args, level) {
-    const sessionKey = `${toolName}:${args.path || args.cmd || "*"}`;
+    const filePath = args.path || args.cmd || args.url || args.file || "*";
+    const sessionKey = `${toolName}:${filePath}`;
     this.sessionOverrides.set(sessionKey, level);
+  }
+
+  rememberToolSession(toolName, level) {
+    this.sessionOverrides.set(toolName, level);
   }
 
   // Get all rules for display
@@ -184,7 +195,7 @@ class PermissionStore {
 async function askPermission(toolName, args, store, autoYes = false) {
   const level = store.check(toolName, args);
 
-  if (level === LEVEL.ALLOW) return true;
+  if (level === LEVEL.ALLOW || level === LEVEL.SESSION_ALLOW) return true;
   if (level === LEVEL.DENY) {
     log.warn(`Permission denied for ${toolName} (rule)`);
     return false;
@@ -205,10 +216,11 @@ async function askPermission(toolName, args, store, autoYes = false) {
     console.log("");
     console.log(`  ${TEXT}Options:${C.reset}`);
     console.log(`    ${SUCCESS}y${C.reset}  ${TEXT_DIM}Allow once${C.reset}`);
+    console.log(`    ${SUCCESS}s${C.reset}  ${TEXT_DIM}Allow for this session${C.reset}`);
     console.log(`    ${SUCCESS}a${C.reset}  ${TEXT_DIM}Always allow this tool${C.reset}`);
     console.log(`    ${ERROR}d${C.reset}  ${TEXT_DIM}Always deny this tool${C.reset}`);
     console.log(`    ${ERROR}n${C.reset}  ${TEXT_DIM}Deny once${C.reset}`);
-    process.stdout.write(`\n  ${TEXT}[y/a/d/N]${C.reset} ${MUTED}(auto-deny 15s)${C.reset} `);
+    process.stdout.write(`\n  ${TEXT}[y/s/a/d/N]${C.reset} ${MUTED}(auto-deny 30s)${C.reset} `);
 
     const onData = (d) => {
       clearTimeout(timer);
@@ -218,6 +230,11 @@ async function askPermission(toolName, args, store, autoYes = false) {
       switch (answer) {
         case "y":
           console.log(`  ${SUCCESS}✓ Allowed once${C.reset}\n`);
+          resolve(true);
+          break;
+        case "s":
+          store.rememberToolSession(toolName, LEVEL.SESSION_ALLOW);
+          console.log(`  ${SUCCESS}✓ Allowed for session: ${toolName}${C.reset}\n`);
           resolve(true);
           break;
         case "a":
@@ -241,7 +258,7 @@ async function askPermission(toolName, args, store, autoYes = false) {
       process.stdin.off("data", onData);
       console.log(`  ${ERROR}✗ Auto-denied (timeout)${C.reset}\n`);
       resolve(false);
-    }, 15000);
+    }, 30000);
 
     process.stdin.on("data", onData);
   });
@@ -253,13 +270,15 @@ function formatToolDetail(toolName, args) {
     case "patch_file":
       return args.path || "unknown file";
     case "run_shell":
-      return (args.cmd || "").slice(0, 120);
+      return (args.cmd || "").slice(0, 200);
     case "http_request":
-      return `${args.method || "GET"} ${args.url || ""}`.slice(0, 120);
+      return `${args.method || "GET"} ${args.url || ""}`.slice(0, 200);
     case "web_search":
       return `Search: ${args.query || ""}`;
+    case "git_commit":
+      return `Commit: ${args.message || ""}`;
     default:
-      return JSON.stringify(args).slice(0, 120);
+      return JSON.stringify(args).slice(0, 200);
   }
 }
 

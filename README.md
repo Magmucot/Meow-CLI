@@ -2,9 +2,9 @@
 
 Meow CLI is a powerful, autonomous, and beautiful terminal-based AI Agent. Inspired by the best of Claude Code and modern CLI tools, it provides a high-performance environment for building, refactoring, and automating your projects.
 
-![Version](https://img.shields.io/badge/version-2.0.0-orange)
-![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-green)
-![License](https://img.shields.io/badge/license-MIT-blue)
+![License](https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-blue.svg)
+![Node](https://img.shields.io/badge/node-%3E%3D18-green.svg)
+
 
 ## 🚀 Features
 

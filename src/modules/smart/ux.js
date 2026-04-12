@@ -1,3 +1,8 @@
+/**
+ * Smart UX module for Meow CLI.
+ * Provides desktop notifications, live preview, and pair programming mode.
+ */
+
 // ═══════════════════════════════════════════════════════════════════════════
 // smart/ux.js — Enhanced UX Features
 // Desktop notifications, live preview, pair programming mode

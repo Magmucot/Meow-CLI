@@ -1,25 +1,44 @@
 import path from "path";
 import os from "os";
 
-// ─── Config & State ─────────────────────────────────────────────────────────
-
+/** @type {string} Base directory for Meow CLI data */
 const DATA_DIR = path.join(os.homedir(), ".meowcli", "data");
+/** @type {string} Path to chat history file */
 const HIST_FILE = path.join(DATA_DIR, "history.json");
+/** @type {string} Path to configuration file */
 const CONF_FILE = path.join(DATA_DIR, "config.json");
+/** @type {string} Directory for autopilot logs */
 const LOG_DIR = path.join(DATA_DIR, "logs");
+/** @type {string} Path to undo/checkpoint state */
 const UNDO_FILE = path.join(DATA_DIR, "undo.json");
+/** @type {string} Directory for custom assistant profiles */
 const ASSIST_DIR = path.join(DATA_DIR, "assistents");
+/** @type {string} Path to pinned messages */
 const PIN_FILE = path.join(DATA_DIR, "pins.json");
+/** @type {string} Directory for user plugins */
 const PLUGIN_DIR = path.join(DATA_DIR, "plugins");
+/** @type {string} Path to tool permissions storage */
 const PERM_FILE = path.join(DATA_DIR, "permissions.json");
+/** @type {string} Directory for saved sessions */
 const SESSION_DIR = path.join(DATA_DIR, "sessions");
+/** @type {string} Directory for file-system checkpoints */
 const CHECKPOINT_DIR = path.join(DATA_DIR, "checkpoints");
+/** @type {string} Path to cost/usage tracking data */
 const COST_FILE = path.join(DATA_DIR, "cost.json");
+/** @type {string} Path to global project context file */
 const GLOBAL_MEOW_MD = path.join(os.homedir(), ".meowcli", "MEOW.md");
+
+/** @type {string} Legacy history path (pre-v2) */
 const LEGACY_HIST_FILE = path.join(os.homedir(), ".meowcli_history.json");
+/** @type {string} Legacy config path (pre-v2) */
 const LEGACY_CONF_FILE = path.join(os.homedir(), ".meowcli.json");
+/** @type {string} Legacy log directory (pre-v2) */
 const LEGACY_LOG_DIR = path.join(os.homedir(), ".meowcli_logs");
 
+/**
+ * Default application configuration.
+ * @type {Object}
+ */
 const DEFAULT_CONFIG = {
   api_base: process.env.OPENAI_BASE_URL || "https://api.openai.com/v1",
   api_key: process.env.OPENAI_API_KEY || "",
@@ -74,7 +93,6 @@ const DEFAULT_CONFIG = {
     "/ctx": "/context",
     "/rw": "/rewind",
     "/sess": "/session",
-    // v3 aliases
     "/ld": "/lead",
     "/del": "/delegate",
     "/mem": "/memory",
@@ -88,6 +106,10 @@ const DEFAULT_CONFIG = {
   }
 };
 
+/**
+ * Internationalization strings.
+ * @type {Object}
+ */
 const I18N = {
   ru: {
     banner_subtitle: "Terminal AI Assistant",
@@ -197,12 +219,16 @@ const I18N = {
   }
 };
 
+/**
+ * Translates a key to the current language.
+ * @param {Object} cfg - Application configuration.
+ * @param {string} key - Translation key.
+ * @param {string} [fallback=""] - Fallback string.
+ * @returns {string} Translated string.
+ */
 function t(cfg, key, fallback = "") {
   const lang = cfg?.lang || "ru";
   return (I18N[lang] && I18N[lang][key]) || I18N.ru[key] || fallback || key;
 }
-
-// TOOLS definition lives in tools.js — single source of truth
-
 
 export { DATA_DIR, HIST_FILE, CONF_FILE, LOG_DIR, UNDO_FILE, ASSIST_DIR, PIN_FILE, PLUGIN_DIR, PERM_FILE, SESSION_DIR, CHECKPOINT_DIR, COST_FILE, GLOBAL_MEOW_MD, LEGACY_HIST_FILE, LEGACY_CONF_FILE, LEGACY_LOG_DIR, DEFAULT_CONFIG, I18N, t };

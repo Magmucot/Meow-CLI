@@ -149,12 +149,18 @@ function loadHistoryState() {
   return fallback;
 }
 
-/** @returns {Array<Object>} List of pinned messages */
+/**
+ * Loads pinned messages.
+ * @returns {Array<Object>} List of pinned messages.
+ */
 function loadPins() {
   return loadJson(PIN_FILE, []);
 }
 
-/** @param {Array<Object>} pins - List of pinned messages */
+/**
+ * Saves pinned messages.
+ * @param {Array<Object>} pins - List of pinned messages.
+ */
 function savePins(pins) {
   saveJson(PIN_FILE, pins || []);
 }
@@ -177,15 +183,24 @@ function applyVacuum(history, cfg) {
   return [...head, ...keepTail];
 }
 
-/** @param {Object} state - History state to save */
+/**
+ * Saves chat history state.
+ * @param {Object} state - History state to save.
+ */
 function saveHistoryState(state) { saveJson(HIST_FILE, state); }
 
-/** @returns {Array<Object>} List of undo checkpoints */
+/**
+ * Loads undo checkpoints.
+ * @returns {Array<Object>} List of undo checkpoints.
+ */
 function loadUndoState() {
   return loadJson(UNDO_FILE, []);
 }
 
-/** @param {Array<Object>} state - Undo state to save */
+/**
+ * Saves undo checkpoints.
+ * @param {Array<Object>} state - Undo state to save.
+ */
 function saveUndoState(state) {
   saveJson(UNDO_FILE, state);
 }
@@ -225,4 +240,9 @@ function migrateLegacyData() {
   }
 }
 
-export { loadJson, saveJson, normalizeAssistantProfile, loadAssistentsFromDir, saveAssistantProfile, loadConfig, saveConfig, loadHistoryState, loadPins, savePins, applyVacuum, saveHistoryState, loadUndoState, saveUndoState, migrateLegacyData };
+export {
+  loadJson, saveJson, normalizeAssistantProfile, loadAssistentsFromDir,
+  saveAssistantProfile, loadConfig, saveConfig, loadHistoryState,
+  loadPins, savePins, applyVacuum, saveHistoryState,
+  loadUndoState, saveUndoState, migrateLegacyData
+};

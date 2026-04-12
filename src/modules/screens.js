@@ -69,7 +69,7 @@ function printStats(cfg, currentChat, historyLen, pinsCount = 0) {
     ["Auto-yes", cfg.auto_yes ? `${SUCCESS("on")}` : `${MUTED("off")}`], ["Git Autocommit", cfg.git?.autocommit === false ? `${MUTED("off")}` : `${SUCCESS("on")}`], ["AP Limit", `${AUTO_CLR(cfg.autopilot?.max_iterations || 50)}`], ["Plugins", `${TEXT(pluginSummary)}`],
     ["Vacuum", `${vac.enabled ? SUCCESS("on") : MUTED("off")} ${MUTED("(drop " + (vac.drop_count || 0) + ", keep " + (vac.keep_last || 0) + ")")}`], ["Pins", `${TEXT(pinsCount)}`], ["CWD", `${MUTED(process.cwd())}`],
   ];
-  console.log(`  ${C.bold(AI_GRADIENT(stripAnsi(t(cfg, \"stats_title\"))))}`);
+  console.log(`  ${C.bold(AI_GRADIENT(stripAnsi(t(cfg, "stats_title\"))))}`);
   console.log(`  ${MUTED("─".repeat(50))}`);
   table(rows.map(([label, value]) => [`${TEXT_DIM(label)}`, value]), { colWidths: [18] });
   console.log(`  ${MUTED("─".repeat(50))}\n`);

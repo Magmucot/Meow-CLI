@@ -1,250 +1,106 @@
-import { TOOLS, ALL_TOOLS } from "./tools.js";
-import { sanitizeMessagesForApi, sanitizeToolCallsForApi } from "./images.js";
+import fs from "fs";
+import path from "path";
+import { log, ACCENT, TEXT_DIM, MUTED } from "./ui.js";
 
-/** @type {number} Maximum number of retries for transient API errors */
-const MAX_RETRIES = 3;
-/** @type {number} Base delay for exponential backoff in milliseconds */
-const BASE_DELAY = 1000;
-/** @type {Array<number>} HTTP status codes that should trigger a retry */
-const RETRYABLE_CODES = [429, 500, 502, 503, 504];
+const ALL_TOOLS = [
+  { name: "list_dir", description: "List files and directories at the given path. Returns sorted entries with '/' suffix for directories.", parameters: { type: "object", properties: { path: { type: "string", description: "Directory path to list" }, recursive: { type: "boolean", description: "If true, list recursively (max 3 levels deep)" } }, required: ["path"] } },
+  { name: "read_file", description: "Read the contents of a file. Large files are truncated to 50KB.", parameters: { type: "object", properties: { path: { type: "string", description: "File path to read" }, start_line: { type: "number", description: "Start reading from this line (1-based)" }, end_line: { type: "number", description: "Stop reading at this line (inclusive)" } }, required: ["path"] } },
+  { name: "write_file", description: "Create or overwrite a file with the given content. Shows diff for confirmation.", parameters: { type: "object", properties: { path: { type: "string", description: "File path to write" }, content: { type: "string", description: "Full file content" } }, required: ["path", "content"] } },
+  { name: "patch_file", description: "Apply a targeted edit to a file. Replaces 'old_string' with 'new_string'. Use this instead of write_file when you only need to change part of a file.", parameters: { type: "object", properties: { path: { type: "string", description: "File path to patch" }, old_string: { type: "string", description: "Exact string to find and replace (must match exactly, including whitespace)" }, new_string: { type: "string", description: "Replacement string" } }, required: ["path", "old_string", "new_string"] } },
+  { name: "grep_search", description: "Search for a pattern across files in a directory. Returns matching lines with file paths and line numbers.", parameters: { type: "object", properties: { pattern: { type: "string", description: "Search pattern (regex supported)" }, path: { type: "string", description: "Directory or file to search in (default: current dir)" }, include: { type: "string", description: "File glob pattern to include (e.g. '*.js', '*.py')" }, max_results: { type: "number", description: "Maximum results to return (default: 50)" } }, required: ["pattern"] } },
+  { name: "run_shell", description: "Execute a shell command (Bash). Returns stdout, stderr, and exit code.", parameters: { type: "object", properties: { cmd: { type: "string", description: "Shell command to execute" } }, required: ["cmd"] } },
+  { name: "http_request", description: "Make an HTTP request and return the response.", parameters: { type: "object", properties: { url: { type: "string" }, method: { type: "string", enum: ["GET", "POST", "PUT", "PATCH", "DELETE"], description: "Allowed: GET, POST, PUT, PATCH, DELETE" }, headers: { type: "object" }, body: { type: "string" }, timeout_ms: { type: "number" } }, required: ["url"] } },
+  { name: "web_search", description: "Search the internet using DuckDuckGo.", parameters: { type: "object", properties: { query: { type: "string" }, max_results: { type: "number" } }, required: ["query"] } },
+  { name: "tool_chain", description: "Execute a sequence of tools in order. Useful for batch operations.", parameters: { type: "object", properties: { steps: { type: "array", items: { type: "object", properties: { tool: { type: "string" }, args: { type: "object" } }, required: ["tool"] } } }, required: ["steps"] } },
+  { name: "ask_user", description: "Ask the user a question and get a text response.", parameters: { type: "object", properties: { question: { type: "string" }, default: { type: "string" } }, required: ["question"] } },
+  { name: "confirm", description: "Ask the user for yes/no confirmation.", parameters: { type: "object", properties: { message: { type: "string" }, default: { type: "boolean" } }, required: ["message"] } },
+  { name: "choose", description: "Present options to the user and get their choice.", parameters: { type: "object", properties: { question: { type: "string" }, options: { type: "array", items: { type: "string" } }, default_index: { type: "number" } }, required: ["question", "options"] } },
+  { name: "delegate_task", description: "Delegate subtasks to parallel sub-agents. Each sub-agent runs independently with its own token budget. Use for multi-file operations, parallel searches, batch refactoring.", parameters: { type: "object", properties: { tasks: { type: "array", items: { type: "object", properties: { description: { type: "string", description: "Clear task description for the sub-agent" }, max_tokens: { type: "number", description: "Token budget for this sub-agent (default: auto)" }, tools: { type: "array", items: { type: "string" }, description: "Tools this sub-agent may use" } }, required: ["description"] }, description: "Array of subtasks to run in parallel" } }, required: ["tasks"] } },
+  { name: "git_diff", description: "Show git diff (staged or unstaged changes)", parameters: { type: "object", properties: { file: { type: "string", description: "Specific file" }, staged: { type: "boolean", description: "Show staged changes" } } } },
+  { name: "git_log", description: "Show recent git commits", parameters: { type: "object", properties: { count: { type: "number", description: "Number of commits (default 10)" }, file: { type: "string", description: "Filter by file" } } } },
+  { name: "git_commit", description: "Stage and commit changes", parameters: { type: "object", properties: { message: { type: "string" }, files: { type: "array", items: { type: "string" } } }, required: ["message"] } },
+  { name: "git_branch", description: "List, create, or checkout branches", parameters: { type: "object", properties: { name: { type: "string" }, create: { type: "boolean" }, checkout: { type: "boolean" } } } },
+  { name: "git_status", description: "Show git working tree status", parameters: { type: "object" } },
+  { name: "ci_pipeline", description: "Manage CI/CD. Actions: status (list workflows), generate (create GitHub Actions), heal (auto-fix failing tests)", parameters: { type: "object", properties: { action: { type: "string", enum: ["status", "generate", "heal"], description: "Allowed: status, generate, heal" }, name: { type: "string" }, description: { type: "string" } }, required: ["action"] } }
+];
 
-/**
- * Determines if an error is retryable.
- * @param {number} status - HTTP status code.
- * @param {string} [errorMsg=""] - Error message text.
- * @returns {boolean} True if the request should be retried.
- */
-function isRetryable(status, errorMsg = "") {
-  if (RETRYABLE_CODES.includes(status)) return true;
-  const msg = errorMsg.toLowerCase();
-  return msg.includes("econnreset") ||
-         msg.includes("timeout") ||
-         msg.includes("fetch failed") ||
-         msg.includes("network") ||
-         msg.includes("socket hang up");
-}
-
-/**
- * Calculates retry delay with exponential backoff.
- * @param {number} attempt - Current attempt number.
- * @param {number} status - HTTP status code.
- * @returns {number} Delay in milliseconds.
- */
-function getRetryDelay(attempt, status) {
-  const multiplier = status === 429 ? 3 : 1;
-  return BASE_DELAY * Math.pow(2, attempt) * multiplier;
-}
-
-/**
- * Makes a standard (non-streaming) request to the AI API.
- * @param {Array<Object>} messages - Conversation history.
- * @param {Object} cfg - Application configuration.
- * @returns {Promise<Object>} The API response data.
- * @throws {Error} If the API returns an error or fails after retries.
- */
-async function callApi(messages, cfg) {
-  if (!cfg.api_key) throw new Error("API Key not set. Use /key or set OPENAI_API_KEY.");
-
+async function callApi(messages, cfg, options = {}) {
   const profile = cfg.profiles[cfg.profile] || cfg.profiles.default;
-  const url = cfg.api_base.replace(/\/+$/, "");
-  const safeMessages = sanitizeToolCallsForApi(sanitizeMessagesForApi(messages));
-
-  const payload = {
+  const url = cfg.api_base + "/chat/completions";
+  const body = {
     model: cfg.model,
-    messages: safeMessages,
-    tools: ALL_TOOLS,
+    messages,
+    temperature: options.temperature ?? profile.temperature,
+    tools: ALL_TOOLS.map(t => ({ type: "function", function: t })),
     tool_choice: "auto",
-    temperature: profile.temperature,
   };
-
-  let lastError;
-
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      const controller = new AbortController();
-      const timeoutMs = cfg.api_timeout_ms || 120000;
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-      const res = await fetch(`${url}/chat/completions/`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${cfg.api_key}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timer);
-
-      if (!res.ok) {
-        const txt = await res.text().catch(() => "");
-
-        if (txt.includes("context_length") || txt.includes("maximum context") || txt.includes("token")) {
-          const err = new Error(`API ${res.status}: ${txt.slice(0, 300)}`);
-          err.status = res.status;
-          err.isContextError = true;
-          throw err;
-        }
-
-        if (isRetryable(res.status) && attempt < MAX_RETRIES) {
-          const delay = getRetryDelay(attempt, res.status);
-          lastError = new Error(`API ${res.status}: ${txt.slice(0, 200)}`);
-          lastError.status = res.status;
-          await new Promise(r => setTimeout(r, delay));
-          continue;
-        }
-
-        throw new Error(`API ${res.status}: ${txt.slice(0, 300)}`);
-      }
-
-      return await res.json();
-
-    } catch (e) {
-      if (e.isContextError) throw e;
-
-      if (e.name === "AbortError") {
-        e.message = `API timeout after ${(cfg.api_timeout_ms || 120000) / 1000}s`;
-      }
-
-      if (attempt < MAX_RETRIES && isRetryable(0, e.message)) {
-        const delay = getRetryDelay(attempt, 0);
-        lastError = e;
-        await new Promise(r => setTimeout(r, delay));
-        continue;
-      }
-
-      throw new Error(`Network error: ${e.message}`);
-    }
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${cfg.api_key}` },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    let err;
+    try { err = JSON.parse(errText); } catch { throw new Error(`API Error: ${res.status} ${res.statusText} - ${errText}`); }
+    throw new Error(`API Error: ${err.error?.message || err.message || res.statusText}`);
   }
-
-  throw lastError || new Error("API call failed after retries");
+  return res.json();
 }
 
-/**
- * Makes a streaming request to the AI API.
- * @param {Array<Object>} messages - Conversation history.
- * @param {Object} cfg - Application configuration.
- * @param {Function} onChunk - Callback for each received text chunk.
- * @returns {Promise<Object>} The final aggregated message and usage data.
- */
 async function callApiStream(messages, cfg, onChunk) {
-  if (!cfg.api_key) throw new Error("API Key not set. Use /key or set OPENAI_API_KEY.");
-
   const profile = cfg.profiles[cfg.profile] || cfg.profiles.default;
-  const url = cfg.api_base.replace(/\/+$/, "");
-  const safeMessages = sanitizeToolCallsForApi(sanitizeMessagesForApi(messages));
-
-  const payload = {
+  const url = cfg.api_base + "/chat/completions";
+  const body = {
     model: cfg.model,
-    messages: safeMessages,
-    tools: ALL_TOOLS,
-    tool_choice: "auto",
+    messages,
     temperature: profile.temperature,
+    tools: ALL_TOOLS.map(t => ({ type: "function", function: t })),
     stream: true,
   };
-
-  const controller = new AbortController();
-  const timeoutMs = cfg.api_timeout_ms || 120000;
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    const res = await fetch(`${url}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${cfg.api_key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timer);
-
-    if (!res.ok) {
-      const txt = await res.text().catch(() => "");
-      throw new Error(`API ${res.status}: ${txt.slice(0, 300)}`);
-    }
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    let fullContent = "";
-    let toolCalls = [];
-    let finishReason = null;
-    let usage = null;
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed === "data: [DONE]") {
-          if (trimmed === "data: [DONE]") finishReason = finishReason || "stop";
-          continue;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${cfg.api_key}` },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`API Error: ${res.status} ${await res.text()}`);
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let fullMessage = { role: "assistant", content: "", tool_calls: [] };
+  let usage = null;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop();
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || !trimmed.startsWith("data: ")) continue;
+      const dataStr = trimmed.slice(6);
+      if (dataStr === "[DONE]") break;
+      try {
+        const data = JSON.parse(dataStr);
+        const delta = data.choices?.[0]?.delta;
+        if (data.usage) usage = data.usage;
+        if (!delta) continue;
+        if (delta.content) {
+          fullMessage.content += delta.content;
+          onChunk({ type: "text", content: delta.content });
         }
-        if (!trimmed.startsWith("data: ")) continue;
-
-        try {
-          const json = JSON.parse(trimmed.slice(6));
-          const delta = json.choices?.[0]?.delta;
-          const finish = json.choices?.[0]?.finish_reason;
-
-          if (finish) finishReason = finish;
-          if (json.usage) usage = json.usage;
-
-          if (!delta) continue;
-
-          if (delta.content) {
-            fullContent += delta.content;
-            if (onChunk) onChunk({ type: "text", content: delta.content });
+        if (delta.tool_calls) {
+          for (const tc of delta.tool_calls) {
+            if (!fullMessage.tool_calls[tc.index]) fullMessage.tool_calls[tc.index] = { id: tc.id, type: "function", function: { name: "", arguments: "" } };
+            if (tc.function?.name) fullMessage.tool_calls[tc.index].function.name += tc.function.name;
+            if (tc.function?.arguments) fullMessage.tool_calls[tc.index].function.arguments += tc.function.arguments;
           }
-
-          if (delta.tool_calls) {
-            for (const tc of delta.tool_calls) {
-              const idx = tc.index ?? 0;
-              if (!toolCalls[idx]) {
-                toolCalls[idx] = {
-                  id: tc.id || "",
-                  type: "function",
-                  function: { name: tc.function?.name || "", arguments: "" },
-                };
-              }
-              if (tc.id) toolCalls[idx].id = tc.id;
-              if (tc.function?.name) toolCalls[idx].function.name = tc.function.name;
-              if (tc.function?.arguments) toolCalls[idx].function.arguments += tc.function.arguments;
-            }
-          }
-        } catch {
-          // skip malformed chunks
         }
-      }
+      } catch {}
     }
-
-    const message = { role: "assistant", content: fullContent || null };
-    if (toolCalls.length > 0) {
-      message.tool_calls = toolCalls.filter(tc => tc && tc.id);
-      if (!message.content) message.content = null;
-    }
-
-    return {
-      choices: [{ message, finish_reason: finishReason }],
-      usage: usage || null,
-    };
-
-  } catch (e) {
-    clearTimeout(timer);
-    if (e.name === "AbortError") {
-      throw new Error(`API stream timeout after ${timeoutMs / 1000}s`);
-    }
-    throw e;
   }
+  fullMessage.tool_calls = fullMessage.tool_calls.filter(Boolean);
+  return { choices: [{ message: fullMessage }], usage };
 }
 
-
-export { callApi, callApiStream };
+export { callApi, callApiStream, ALL_TOOLS };

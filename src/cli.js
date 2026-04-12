@@ -257,18 +257,18 @@ async function main() {
 
   // Show banner
   ctx.refreshBanner();
+  intro(ACCENT.bold("MEOW CLI"));
 
   // Show tips
-  console.log(box(
-    `${TEXT_DIM}${t(ctx.cfg, "tips_body")}\n` +
-    `${TEXT_DIM}• /lead — AI lead developer mode\n` +
-    `${TEXT_DIM}• /delegate <task> — parallel sub-agents\n` +
-    `${TEXT_DIM}• /memory — project memory (RAG)\n` +
-    `${TEXT_DIM}• /pair — pair programming mode\n` +
-    `${TEXT_DIM}• /ci — CI/CD management`,
-    { title: t(ctx.cfg, "tips_title"), width: COLS - 2 }
-  ));
-  console.log("");
+  note(
+    `${t(ctx.cfg, "tips_body")}\n` +
+    `• /lead — AI lead developer mode\n` +
+    `• /delegate <task> — parallel sub-agents\n` +
+    `• /memory — project memory (RAG)\n` +
+    `• /pair — pair programming mode\n` +
+    `• /ci — CI/CD management`,
+    t(ctx.cfg, "tips_title")
+  );
 
   await loadPlugins(ctx.cfg, ctx);
 

@@ -1,7 +1,3 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// tools.js — Meow CLI Tools (with patch_file + grep_search)
-// ═══════════════════════════════════════════════════════════════════════════
-
 import fs from "fs";
 import path from "path";
 import { createTwoFilesPatch } from "diff";

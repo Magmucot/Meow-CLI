@@ -79,5 +79,7 @@ function timeAgo(ts) {
   return Math.floor(diff / 86400000) + "d ago";
 }
 
-
-export { applyAliases, renderTemplate, parseKv, makeChatName, formatBytes, formatDuration, timeAgo };
+export {
+  applyAliases, renderTemplate, parseKv, makeChatName,
+  formatBytes, formatDuration, timeAgo
+};

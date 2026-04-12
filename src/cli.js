@@ -20,8 +20,6 @@ import { SessionManager } from "./modules/sessions.js";
 import { CostTracker } from "./modules/cost-tracker.js";
 import { shouldAutoCompact, compactMessages, printCompactResult, estimateTokens } from "./modules/compact.js";
 
-// ─── Parse CLI args ─────────────────────────────────────────────────────────
-
 function parseArgs() {
   const args = process.argv.slice(2);
   const opts = {
@@ -54,7 +52,6 @@ function parseArgs() {
     }
   }
 
-  // Check for piped stdin
   if (!process.stdin.isTTY && !opts.prompt) {
     opts.pipe = true;
   }
@@ -62,15 +59,12 @@ function parseArgs() {
   return opts;
 }
 
-// ─── Pipe Mode (non-interactive) ────────────────────────────────────────────
-
 async function runPipeMode(opts) {
   const { createCliContext } = await import("./modules/cli-context.js");
   const ctx = createCliContext();
 
   let input = opts.prompt;
   if (!input) {
-    // Read from stdin
     const chunks = [];
     for await (const chunk of process.stdin) {
       chunks.push(chunk);
@@ -84,7 +78,6 @@ async function runPipeMode(opts) {
     process.exit(1);
   }
 
-  // Inject project context
   const contextParts = loadProjectContext();
   const basePrompt = ctx.cfg.profiles[ctx.cfg.profile]?.system || "";
   const systemPrompt = buildSystemPrompt(basePrompt, contextParts);
@@ -118,8 +111,6 @@ async function runPipeMode(opts) {
   }
 }
 
-// ─── Stream Response Renderer ───────────────────────────────────────────────
-
 class StreamRenderer {
   constructor() {
     this.buffer = "";
@@ -131,16 +122,12 @@ class StreamRenderer {
     if (chunk.type !== "text" || !chunk.content) return;
 
     if (!this.started) {
-      // Print header on first chunk
       console.log(`\n  ${C.bold(AI_GRADIENT("Assistant"))}`);
       this.started = true;
     }
 
     this.buffer += chunk.content;
-
-    // Render complete lines as they come in
     const lines = this.buffer.split("\n");
-    // Keep the last (potentially incomplete) line in buffer
     this.buffer = lines.pop() || "";
 
     for (const line of lines) {
@@ -149,7 +136,6 @@ class StreamRenderer {
   }
 
   finish() {
-    // Print remaining buffer
     if (this.buffer) {
       this._printLine(this.buffer);
       this.buffer = "";
@@ -161,16 +147,9 @@ class StreamRenderer {
   }
 
   _printLine(line) {
-    // Simple inline markdown hints: bold, code, headers
     let formatted = line;
-
-    // Bold
     formatted = formatted.replace(/\*\*([^*]+)\*\*/g, (m, p1) => C.bold(p1));
-
-    // Inline code
     formatted = formatted.replace(/`([^`]+)`/g, (m, p1) => MUTED(p1));
-
-    // Headers
     if (/^#{1,3}\s/.test(formatted)) {
       formatted = ACCENT.bold(formatted);
     }
@@ -180,8 +159,6 @@ class StreamRenderer {
   }
 }
 
-// ─── Non-streaming Response Renderer ────────────────────────────────────────
-
 function renderNonStreaming(msg, data) {
   console.log(`\n  ${C.bold(AI_GRADIENT("Assistant"))}`);
   const output = renderMD(msg.content || "").trim();
@@ -189,12 +166,9 @@ function renderNonStreaming(msg, data) {
   console.log(`  ${MUTED("└")}\n`);
 }
 
-// ─── Main Interactive Loop ──────────────────────────────────────────────────
-
 async function main() {
   const opts = parseArgs();
 
-  // Pipe mode: non-interactive
   if (opts.pipe) {
     return runPipeMode(opts);
   }

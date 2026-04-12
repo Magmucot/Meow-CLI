@@ -124,14 +124,16 @@ async function loadPlugins(cfg, ctx) {
         if (pluginState.plugins.has(name)) {
           log.warn(`Plugin '${name}' already loaded. Skipping ${file}.`);
           continue;
-        }\n        const enabled = isPluginEnabled(cfg, name);
+        }
+        const enabled = isPluginEnabled(cfg, name);
         const info = {
           name,
           version: plugin?.version || "0.0.0",
           description: plugin?.description || "",
           file: full,
           enabled,
-        };\n        pluginState.plugins.set(name, info);
+        };
+        pluginState.plugins.set(name, info);
         if (!enabled) continue;
         if (Array.isArray(plugin?.commands)) {
           for (const cmd of plugin.commands) registerCommand(name, cmd);
@@ -139,7 +141,8 @@ async function loadPlugins(cfg, ctx) {
         if (typeof plugin?.onLoad === "function") {
           await plugin.onLoad(api);
         }
-      } catch (e) {\n        const info = { name, version: "0.0.0", description: "", file: full, enabled: false, error: e.message };
+      } catch (e) {
+        const info = { name, version: "0.0.0", description: "", file: full, enabled: false, error: e.message };
         pluginState.plugins.set(name, info);
         log.err(`Plugin load failed (${file}): ${e.message}`);
       }

@@ -137,7 +137,7 @@ class StreamRenderer {
 
     if (!this.started) {
       // Print header on first chunk
-      console.log(`  ${AI_CLR}${C.bold}Assistant${C.reset}`);
+      console.log(`  ${AI_CLR.bold("Assistant")}`);
       this.started = true;
     }
 
@@ -188,7 +188,7 @@ class StreamRenderer {
 // ─── Non-streaming Response Renderer ────────────────────────────────────────
 
 function renderNonStreaming(msg, data) {
-  console.log(`  ${AI_CLR}${C.bold}Assistant${C.reset}`);
+  console.log(`  ${AI_CLR.bold("Assistant")}`);
   const output = renderMD(msg.content || "").trim();
   console.log(output.split("\n").map(l => "  " + l).join("\n"));
   console.log(`  ${MUTED}${"─".repeat(Math.min(COLS - 4, 50))}${C.reset}`);
@@ -321,8 +321,8 @@ async function main() {
     ctx.messages.push(userMsg);
 
     console.log("");
-    if (allImages.length > 0) console.log(`  ${USER_CLR}${C.bold}You${C.reset} ${IMG_CLR}🖼 ×${allImages.length}${C.reset}`);
-    else console.log(`  ${USER_CLR}${C.bold}You${C.reset}`);
+    if (allImages.length > 0) console.log(`  ${USER_CLR.bold("You")} ${IMG_CLR("🖼 ×" + allImages.length)}`);
+    else console.log(`  ${USER_CLR.bold("You")}`);
 
     // ── Auto-compact check ──
     const compactCheck = shouldAutoCompact(ctx.messages);

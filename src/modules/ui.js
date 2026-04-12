@@ -52,7 +52,7 @@ const COLS = Math.min(process.stdout.columns || 80, 100);
 const MEOW_GRADIENT = gradient(["#CC7832", "#EBCB8B", "#A98EDA"]);
 const AI_GRADIENT = gradient(["#CC7832", "#A98EDA"]);
 
-marked.setOptions({
+marked.use({
   renderer: new TerminalRenderer({
     code: (code) => `\n${MUTED("  ┃")} ${code}\n`,
     blockquote: (quote) => `  ${MUTED("┃")} ${TEXT_DIM(quote)}\n`,

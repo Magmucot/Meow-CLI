@@ -1,16 +1,19 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// api.js — Meow CLI API Layer (streaming + retry + smart error handling)
-// ═══════════════════════════════════════════════════════════════════════════
-
 import { TOOLS, ALL_TOOLS } from "./tools.js";
 import { sanitizeMessagesForApi, sanitizeToolCallsForApi } from "./images.js";
 
-// ─── Retry Config ───────────────────────────────────────────────────────────
-
+/** @type {number} Maximum number of retries for transient API errors */
 const MAX_RETRIES = 3;
+/** @type {number} Base delay for exponential backoff in milliseconds */
 const BASE_DELAY = 1000;
+/** @type {Array<number>} HTTP status codes that should trigger a retry */
 const RETRYABLE_CODES = [429, 500, 502, 503, 504];
 
+/**
+ * Determines if an error is retryable.
+ * @param {number} status - HTTP status code.
+ * @param {string} [errorMsg=""] - Error message text.
+ * @returns {boolean} True if the request should be retried.
+ */
 function isRetryable(status, errorMsg = "") {
   if (RETRYABLE_CODES.includes(status)) return true;
   const msg = errorMsg.toLowerCase();
@@ -21,14 +24,24 @@ function isRetryable(status, errorMsg = "") {
          msg.includes("socket hang up");
 }
 
+/**
+ * Calculates retry delay with exponential backoff.
+ * @param {number} attempt - Current attempt number.
+ * @param {number} status - HTTP status code.
+ * @returns {number} Delay in milliseconds.
+ */
 function getRetryDelay(attempt, status) {
-  // 429 = rate limit → longer backoff
   const multiplier = status === 429 ? 3 : 1;
   return BASE_DELAY * Math.pow(2, attempt) * multiplier;
 }
 
-// ─── Standard API Call (non-streaming) ──────────────────────────────────────
-
+/**
+ * Makes a standard (non-streaming) request to the AI API.
+ * @param {Array<Object>} messages - Conversation history.
+ * @param {Object} cfg - Application configuration.
+ * @returns {Promise<Object>} The API response data.
+ * @throws {Error} If the API returns an error or fails after retries.
+ */
 async function callApi(messages, cfg) {
   if (!cfg.api_key) throw new Error("API Key not set. Use /key or set OPENAI_API_KEY.");
 
@@ -67,7 +80,6 @@ async function callApi(messages, cfg) {
       if (!res.ok) {
         const txt = await res.text().catch(() => "");
 
-        // Check if context length error — don't retry, throw immediately
         if (txt.includes("context_length") || txt.includes("maximum context") || txt.includes("token")) {
           const err = new Error(`API ${res.status}: ${txt.slice(0, 300)}`);
           err.status = res.status;
@@ -109,8 +121,13 @@ async function callApi(messages, cfg) {
   throw lastError || new Error("API call failed after retries");
 }
 
-// ─── Streaming API Call ─────────────────────────────────────────────────────
-
+/**
+ * Makes a streaming request to the AI API.
+ * @param {Array<Object>} messages - Conversation history.
+ * @param {Object} cfg - Application configuration.
+ * @param {Function} onChunk - Callback for each received text chunk.
+ * @returns {Promise<Object>} The final aggregated message and usage data.
+ */
 async function callApiStream(messages, cfg, onChunk) {
   if (!cfg.api_key) throw new Error("API Key not set. Use /key or set OPENAI_API_KEY.");
 
@@ -183,13 +200,11 @@ async function callApiStream(messages, cfg, onChunk) {
 
           if (!delta) continue;
 
-          // Text content
           if (delta.content) {
             fullContent += delta.content;
             if (onChunk) onChunk({ type: "text", content: delta.content });
           }
 
-          // Tool calls (streamed incrementally)
           if (delta.tool_calls) {
             for (const tc of delta.tool_calls) {
               const idx = tc.index ?? 0;
@@ -211,7 +226,6 @@ async function callApiStream(messages, cfg, onChunk) {
       }
     }
 
-    // Build final message
     const message = { role: "assistant", content: fullContent || null };
     if (toolCalls.length > 0) {
       message.tool_calls = toolCalls.filter(tc => tc && tc.id);

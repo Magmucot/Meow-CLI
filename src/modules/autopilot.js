@@ -1,7 +1,3 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// autopilot.js — Meow CLI Smart Autopilot (Claude Code–grade) v2
-// ═══════════════════════════════════════════════════════════════════════════
-
 import fs from "fs";
 import path from "path";
 import {
@@ -14,8 +10,7 @@ import { formatDuration } from "./utils.js";
 import { callApi } from "./api.js";
 import { executeTool, runShell } from "./tools.js";
 
-// ─── Constants ──────────────────────────────────────────────────────────────
-
+/** @type {Object} Autopilot execution phases */
 const PHASE = {
   PLAN:     "plan",
   EXECUTE:  "execute",
@@ -24,6 +19,7 @@ const PHASE = {
   COMPLETE: "complete",
 };
 
+/** @type {Object} Icons for each phase */
 const PHASE_ICONS = {
   [PHASE.PLAN]:     "📋",
   [PHASE.EXECUTE]:  "⚡",
@@ -32,6 +28,7 @@ const PHASE_ICONS = {
   [PHASE.COMPLETE]: "✅",
 };
 
+/** @type {Object} Colors for each phase */
 const PHASE_COLORS = {
   [PHASE.PLAN]:     INFO,
   [PHASE.EXECUTE]:  AUTO_CLR,
@@ -40,8 +37,7 @@ const PHASE_COLORS = {
   [PHASE.COMPLETE]: SUCCESS,
 };
 
-// ─── Smart System Prompt ────────────────────────────────────────────────────
-
+/** @type {string} System prompt suffix for autopilot mode */
 const AUTOPILOT_SYSTEM_SUFFIX = `
 
 ═══ AUTOPILOT MODE — INTELLIGENT AGENT ═══
@@ -103,9 +99,13 @@ Before ANY action, create a structured plan:
 7. Use tool_chain for batch reads/checks
 `;
 
-// ─── Context Window Manager ─────────────────────────────────────────────────
-
+/**
+ * Manages context window and compression during autopilot runs.
+ */
 class ContextManager {
+  /**
+   * @param {number} [maxTokens=4000000] - Max tokens before compression.
+   */
   constructor(maxTokens = 4000000) {
     this.maxTokens = maxTokens;
     this.warningThreshold = 0.75;
@@ -114,6 +114,11 @@ class ContextManager {
     this.compressions = 0;
   }
 
+  /**
+   * Estimates token count for messages.
+   * @param {Array<Object>} messages - Conversation history.
+   * @returns {number}
+   */
   estimateTokens(messages) {
     let total = 0;
     for (const msg of messages) {
@@ -131,20 +136,28 @@ class ContextManager {
     return total;
   }
 
+  /** @returns {number} Usage ratio (0.0 - 1.0) */
   getUsageRatio() {
     return this.estimatedTokens / this.maxTokens;
   }
 
+  /** @returns {boolean} True if context should be compressed */
   needsCompression(messages) {
     this.estimateTokens(messages);
     return this.getUsageRatio() > this.warningThreshold;
   }
 
+  /** @returns {boolean} True if context MUST be compressed */
   needsCriticalCompression(messages) {
     this.estimateTokens(messages);
     return this.getUsageRatio() > this.criticalThreshold;
   }
 
+  /**
+   * Compresses message history by summarizing old messages.
+   * @param {Array<Object>} messages - History to compress.
+   * @returns {Array<Object>} Compressed history.
+   */
   compress(messages) {
     if (messages.length < 10) return messages;
     this.compressions++;
@@ -174,6 +187,7 @@ class ContextManager {
     return compressed;
   }
 
+  /** @private */
   _summarizeMessages(messages) {
     const parts = [];
     let planText = "";
@@ -205,8 +219,9 @@ class ContextManager {
   }
 }
 
-// ─── Diff Tracker ───────────────────────────────────────────────────────────
-
+/**
+ * Tracks file system changes and commands executed during autopilot.
+ */
 class DiffTracker {
   constructor() {
     this.filesCreated = [];
@@ -215,6 +230,7 @@ class DiffTracker {
     this.snapshots = new Map();
   }
 
+  /** Snapshots a file's current state. */
   snapshotFile(filePath) {
     const resolved = path.resolve(filePath);
     if (this.snapshots.has(resolved)) return;
@@ -224,9 +240,10 @@ class DiffTracker {
       } else {
         this.snapshots.set(resolved, null);
       }
-    } catch { /* ignore */ }
+    } catch { }
   }
 
+  /** Tracks a file write operation. */
   trackWrite(filePath) {
     const resolved = path.resolve(filePath);
     this.snapshotFile(resolved);
@@ -238,10 +255,12 @@ class DiffTracker {
     }
   }
 
+  /** Tracks a shell command execution. */
   trackCommand(cmd) {
     this.commandsRun.push({ cmd: cmd.slice(0, 200), time: Date.now() });
   }
 
+  /** @returns {string} Summary of tracked changes. */
   getSummary() {
     const parts = [];
     const cwd = process.cwd();
@@ -257,13 +276,15 @@ class DiffTracker {
     return parts.join("\n") || "No changes tracked.";
   }
 
+  /** @returns {number} Total number of file changes. */
   getTotalChanges() {
     return this.filesCreated.length + this.filesModified.length;
   }
 }
 
-// ─── Recovery Strategy ──────────────────────────────────────────────────────
-
+/**
+ * Manages error recovery and retry strategies.
+ */
 class RecoveryStrategy {
   constructor() {
     this.errorHistory = [];
@@ -272,6 +293,7 @@ class RecoveryStrategy {
     this.backoffMs = 2000;
   }
 
+  /** Records a tool or API error. */
   recordError(error, toolName, iteration) {
     this.errorHistory.push({
       error: error.message || String(error),
@@ -282,20 +304,24 @@ class RecoveryStrategy {
     this.retryMap.set(toolName, count);
   }
 
+  /** @returns {boolean} True if the tool should be retried. */
   shouldRetry(toolName) {
     return (this.retryMap.get(toolName) || 0) < this.maxRetriesPerTool;
   }
 
+  /** @returns {number} Backoff delay in milliseconds. */
   getBackoffMs(toolName) {
     const count = this.retryMap.get(toolName) || 0;
     return this.backoffMs * Math.pow(2, Math.max(0, count - 1));
   }
 
+  /** @returns {boolean} True if the error is a transient API error. */
   isApiError(error) {
     const msg = error.message || String(error);
     return /429|rate|500|502|503|timeout|ECONNRESET|fetch failed|socket/i.test(msg);
   }
 
+  /** @returns {string} Recovery hint for the user/log. */
   getRecoveryHint(error) {
     const msg = error.message || String(error);
     if (/429|rate/i.test(msg))              return "Rate limited — backoff";
@@ -305,6 +331,7 @@ class RecoveryStrategy {
     return "Unknown error — recovering";
   }
 
+  /** @returns {string} Summary of all errors. */
   getErrorSummary() {
     if (this.errorHistory.length === 0) return "No errors";
     const grouped = {};
@@ -316,8 +343,11 @@ class RecoveryStrategy {
   }
 }
 
-// ─── Phase Detector ─────────────────────────────────────────────────────────
-
+/**
+ * Detects the current phase from assistant content.
+ * @param {string} content - Assistant message content.
+ * @returns {string|null} Phase constant or null.
+ */
 function detectPhase(content) {
   if (!content) return null;
   const upper = content.toUpperCase();
@@ -329,10 +359,11 @@ function detectPhase(content) {
   return null;
 }
 
-// ─── Tracked Tool Execution ─────────────────────────────────────────────────
-
+/**
+ * Executes a tool and tracks its impact.
+ * @private
+ */
 async function executeToolTracked(name, args, cfg, tracker, recovery, iteration) {
-  // Pre-track
   if ((name === "write_file" || name === "patch_file") && args.path) {
     tracker.snapshotFile(args.path);
   }
@@ -342,38 +373,30 @@ async function executeToolTracked(name, args, cfg, tracker, recovery, iteration)
 
   try {
     const result = await executeTool(name, args, cfg);
-
-    // Post-track successful writes
     if ((name === "write_file" || name === "patch_file") && args.path && !result.includes("❌")) {
       tracker.trackWrite(args.path);
     }
-
     return result;
   } catch (e) {
     recovery.recordError(e, name, iteration);
-
     if (recovery.shouldRetry(name)) {
       const backoff = recovery.getBackoffMs(name);
       log.warn(`${recovery.getRecoveryHint(e)} (retry in ${backoff / 1000}s)`);
       await new Promise(r => setTimeout(r, backoff));
-      try {
-        return await executeTool(name, args, cfg);
-      } catch (e2) {
-        return `❌ Tool error after retry: ${e2.message}`;
-      }
+      try { return await executeTool(name, args, cfg); }
+      catch (e2) { return `❌ Tool error after retry: ${e2.message}`; }
     }
-
     return `❌ Tool error (max retries): ${e.message}`;
   }
 }
 
-// ─── UI Helpers ─────────────────────────────────────────────────────────────
-
+/** @private */
 function printToolCallBlock(calls) {
   const count = calls.length;
   console.log(`  ${TOOL_CLR}┃${C.reset} ${TOOL_CLR}${C.bold}Tools${C.reset} ${MUTED}(${count} call${count > 1 ? "s" : ""})${C.reset}`);
 }
 
+/** @private */
 function printToolExecution(name, args, index, total) {
   const argsStr = typeof args === "string" ? args : JSON.stringify(args);
   const short = argsStr.length > 60 ? argsStr.slice(0, 57) + "…" : argsStr;
@@ -381,6 +404,7 @@ function printToolExecution(name, args, index, total) {
   console.log(`  ${TOOL_CLR}┃${C.reset} ${counter}${TOOL_CLR}${C.bold}${name}${C.reset} ${MUTED}${short}${C.reset}`);
 }
 
+/** @private */
 function printToolResult(result, maxLines = 5) {
   if (!result) return;
   const lines = result.split("\n");
@@ -393,6 +417,7 @@ function printToolResult(result, maxLines = 5) {
   }
 }
 
+/** @private */
 function printStatusBar(ap) {
   const elapsed = formatDuration(Date.now() - ap.startTime);
   const barWidth = 20;
@@ -417,6 +442,7 @@ function printStatusBar(ap) {
   console.log(`\n  ${parts.join(`  ${MUTED}·${C.reset}  `)}`);
 }
 
+/** @private */
 function printCompactResponse(content, phase, iteration) {
   if (!content || content.trim().length === 0) return;
   const phaseColor = PHASE_COLORS[phase] || AI_CLR;
@@ -431,9 +457,15 @@ function printCompactResponse(content, phase, iteration) {
   }
 }
 
-// ─── Main Autopilot Class ───────────────────────────────────────────────────
-
+/**
+ * Core Autopilot engine for autonomous task execution.
+ */
 class Autopilot {
+  /**
+   * @param {Object} cfg - Configuration.
+   * @param {Array<Object>} messages - Initial messages history.
+   * @param {Function} saveCallback - State persistence callback.
+   */
   constructor(cfg, messages, saveCallback) {
     this.cfg = cfg;
     this.messages = messages;
@@ -466,11 +498,13 @@ class Autopilot {
     this.maxNudges = 5;
   }
 
+  /** Aborts the current autopilot run. */
   abort() {
     this.aborted = true;
     this.running = false;
   }
 
+  /** @private */
   _log(type, msg) {
     this.logEntries.push({
       time: Date.now(),
@@ -481,6 +515,7 @@ class Autopilot {
     });
   }
 
+  /** @private */
   _printHeader(task) {
     console.log("");
     const lines = [
@@ -499,6 +534,7 @@ class Autopilot {
     console.log("");
   }
 
+  /** @private */
   _printSummary(reason) {
     const elapsed = formatDuration(Date.now() - this.startTime);
     const diffSummary = this.diffTracker.getSummary();
@@ -528,6 +564,7 @@ class Autopilot {
     console.log("");
   }
 
+  /** @private */
   _saveLogFile() {
     if (!this.saveLog || this.logEntries.length === 0) return;
     try {
@@ -558,6 +595,7 @@ class Autopilot {
     } catch (e) { log.dim(`Log save failed: ${e.message}`); }
   }
 
+  /** @private */
   _getPhaseTimeline() {
     const phases = [];
     let cur = null;
@@ -570,6 +608,7 @@ class Autopilot {
     return phases;
   }
 
+  /** @private */
   _generateNudge() {
     this.nudgeCount++;
     const itersSinceTools = this.iteration - this.lastToolCallIteration;
@@ -592,6 +631,7 @@ class Autopilot {
       `If done → verify → "✅ AUTOPILOT COMPLETE". If not → use tools.`;
   }
 
+  /** @private */
   _manageContext() {
     if (this.contextManager.needsCriticalCompression(this.messages)) {
       log.warn("Context critical — compressing");
@@ -608,6 +648,7 @@ class Autopilot {
     return false;
   }
 
+  /** @private */
   async _processToolCalls(msg) {
     const calls = msg.tool_calls;
     this.toolCalls += calls.length;
@@ -644,6 +685,7 @@ class Autopilot {
     console.log(`  ${TOOL_CLR}┃${C.reset} ${MUTED}done${C.reset}`);
   }
 
+  /** @private */
   _processTextResponse(msg) {
     const content = msg.content || "";
     this.messages.push(msg);
@@ -659,8 +701,11 @@ class Autopilot {
     return detected === PHASE.COMPLETE;
   }
 
-  // ─── Main Loop ────────────────────────────────────────────────────────
-
+  /**
+   * Runs the autopilot for a specific task.
+   * @param {string} task - The task description.
+   * @returns {Promise<Object>} Execution statistics.
+   */
   async run(task) {
     this.running = true;
     this.aborted = false;
@@ -710,7 +755,6 @@ class Autopilot {
         printStatusBar(this);
         this._manageContext();
 
-        // ── API Call ──
         let data;
         const spinner = new Spinner(`${this.currentPhase} (iter ${this.iteration})`);
         try {
@@ -723,7 +767,6 @@ class Autopilot {
           this.errors++;
           this._log("api_error", e.message);
 
-          // Context overflow → compress
           if (e.isContextError || /context.?length|token/i.test(e.message || "")) {
             log.warn("Context overflow — compressing…");
             this.messages = this.contextManager.compress(this.messages);
@@ -756,13 +799,11 @@ class Autopilot {
         const msg = data.choices?.[0]?.message;
         if (!msg) { log.warn("Empty API response"); this.iteration--; continue; }
 
-        // ── Tool Calls ──
         if (msg.tool_calls && msg.tool_calls.length > 0) {
           await this._processToolCalls(msg);
           continue;
         }
 
-        // ── Text Response ──
         const isComplete = this._processTextResponse(msg);
 
         if (data.usage) {
@@ -778,7 +819,6 @@ class Autopilot {
           break;
         }
 
-        // ── Nudge ──
         const itersSinceTools = this.iteration - this.lastToolCallIteration;
         if (itersSinceTools >= 2) {
           const nudge = this._generateNudge();
@@ -811,7 +851,6 @@ class Autopilot {
       this.running = false;
     }
 
-    // Trigger
     try {
       const cmd = this.cfg.autopilot?.trigger_cmd || "";
       if (cmd && /completed/i.test(finalReason) && !this.aborted) {
@@ -837,6 +876,5 @@ class Autopilot {
     };
   }
 }
-
 
 export { Autopilot, AUTOPILOT_SYSTEM_SUFFIX, ContextManager, DiffTracker, RecoveryStrategy };

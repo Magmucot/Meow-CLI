@@ -12,10 +12,21 @@ const color = (hex) => {
   return new Proxy(wrapper, {
     get(target, prop) {
       if (prop === 'hexCode') return hex;
-      if (prop === 'toString') return () => fn.open || "";
-      if (prop === Symbol.toPrimitive) return (hint) => (hint === 'number' ? null : (fn.open || ""));
+      if (prop === 'toString' || prop === Symbol.toPrimitive) {
+        return (hint) => (hint === 'number' ? null : (fn.open || ""));
+      }
       const val = fn[prop];
-      return typeof val === 'function' ? val.bind(fn) : val;
+      if (typeof val === 'function') {
+        const bound = val.bind(fn);
+        return (...args) => {
+          const result = bound(...args);
+          if (typeof result === 'function' && result.open !== undefined) {
+             return color(hex); // Keep the color when chaining chalk properties if possible, but chalk doesn't work like that easily
+          }
+          return result;
+        };
+      }
+      return val;
     }
   });
 };

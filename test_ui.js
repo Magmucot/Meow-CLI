@@ -13,9 +13,8 @@ const color = (hex) => {
       }
       const val = fn[prop];
       if (typeof val === 'function') {
-        const bound = val.bind(fn);
         return (...args) => {
-          const result = bound(...args);
+          const result = val.apply(fn, args);
           return result;
         };
       }

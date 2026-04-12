@@ -1,9 +1,11 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// commands/rewind.js — /rewind command (checkpoint restore)
-// ═══════════════════════════════════════════════════════════════════════════
-
 import { log, C, SUCCESS, ERROR, WARNING, MUTED, TEXT_DIM } from "../../core.js";
 
+/**
+ * Handles the /rewind and /checkpoint commands for restoring file system snapshots.
+ * @param {Object} ctx - CLI context.
+ * @param {string} input - User input.
+ * @returns {Promise<Object|null>}
+ */
 const handleRewind = async (ctx, input) => {
   if (!input.startsWith("/rewind") && !input.startsWith("/checkpoint")) return null;
 
@@ -20,7 +22,6 @@ const handleRewind = async (ctx, input) => {
     return { handled: true };
   }
 
-  // /rewind or /rewind N
   const steps = arg ? parseInt(arg, 10) : 1;
   if (isNaN(steps) || steps < 1) {
     log.err("Usage: /rewind [N] or /rewind --list");

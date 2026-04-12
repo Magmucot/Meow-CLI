@@ -9,7 +9,7 @@ import gradient from "gradient-string";
 const color = (hex) => {
   const fn = chalk.hex(hex);
   const wrapper = (text) => fn(text);
-  return new Proxy(wrapper, {
+  const proxy = new Proxy(wrapper, {
     get(target, prop) {
       if (prop === 'hexCode') return hex;
       if (prop === 'toString' || prop === Symbol.toPrimitive) {
@@ -25,6 +25,9 @@ const color = (hex) => {
       return val;
     }
   });
+  wrapper[Symbol.toPrimitive] = () => fn.open;
+  wrapper.toString = () => fn.open;
+  return proxy;
 };
 
 const C = {

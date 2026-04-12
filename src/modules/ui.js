@@ -10,41 +10,57 @@ import boxen from "boxen";
 import { spinner as clackSpinner } from "@clack/prompts";
 import gradient from "gradient-string";
 
-// ─── Theme & Styling (using Chalk) ──────────────────────────────────────────
+// ─── String-friendly Chalk Wrapper ──────────────────────────────────────────
+// This allows using ${ACCENT} as a prefix AND ACCENT("text") as a function.
+
+const color = (fn) => {
+  const wrapped = (s) => (s === undefined ? fn.open : fn(s));
+  wrapped.toString = () => fn.open;
+  // Support chalk chaining like ACCENT.bold("text")
+  Object.getOwnPropertyNames(Object.getPrototypeOf(fn)).forEach(prop => {
+    if (typeof fn[prop] === 'function' && prop !== 'constructor') {
+      wrapped[prop] = (...args) => color(fn[prop](...args));
+    }
+  });
+  // Manually add common ones if needed
+  wrapped.bold = (s) => color(fn.bold)(s);
+  wrapped.dim = (s) => color(fn.dim)(s);
+  return wrapped;
+};
 
 const C = {
-  reset:     chalk.reset,
-  bold:      chalk.bold,
-  dim:       chalk.dim,
-  italic:    chalk.italic,
-  underline: chalk.underline,
-  inverse:   chalk.inverse,
-  gray:      chalk.gray,
-  red:       chalk.red,
-  green:     chalk.green,
-  yellow:    chalk.yellow,
-  blue:      chalk.blue,
-  magenta:   chalk.magenta,
-  cyan:      chalk.cyan,
-  white:     chalk.white,
+  reset:     Object.assign((s) => chalk.reset(s), { toString: () => chalk.reset.open }),
+  bold:      color(chalk.bold),
+  dim:       color(chalk.dim),
+  italic:    color(chalk.italic),
+  underline: color(chalk.underline),
+  inverse:   color(chalk.inverse),
+  gray:      color(chalk.gray),
+  red:       color(chalk.red),
+  green:     color(chalk.green),
+  yellow:    color(chalk.yellow),
+  blue:      color(chalk.blue),
+  magenta:   color(chalk.magenta),
+  cyan:      color(chalk.cyan),
+  white:     color(chalk.white),
 };
 
 // Claude Code–inspired palette
-const ACCENT    = chalk.hex("#CC7832"); // terracotta orange
-const ACCENT2   = chalk.hex("#A98EDA"); // soft lavender
-const ACCENT3   = chalk.hex("#CC7832");
-const SUCCESS   = chalk.hex("#6ABE82"); // sage green
-const WARNING   = chalk.hex("#DEB858"); // warm amber
-const ERROR     = chalk.hex("#D26060"); // muted coral red
-const INFO      = chalk.hex("#6CB4DC"); // sky blue
-const MUTED     = chalk.hex("#646464"); // neutral gray
-const TEXT      = chalk.hex("#D4D4D4"); // light text
-const TEXT_DIM  = chalk.hex("#969696"); // dimmed text
-const TOOL_CLR  = chalk.hex("#6CB4DC"); // tools = blue
-const USER_CLR  = chalk.hex("#D4D4D4"); // user = white
-const AI_CLR    = chalk.hex("#CC7832"); // AI = terracotta
-const IMG_CLR   = chalk.hex("#D28CB4"); // images = dusty rose
-const AUTO_CLR  = chalk.hex("#DEB858"); // autopilot = amber
+const ACCENT    = color(chalk.hex("#CC7832")); // terracotta orange
+const ACCENT2   = color(chalk.hex("#A98EDA")); // soft lavender
+const ACCENT3   = color(chalk.hex("#CC7832"));
+const SUCCESS   = color(chalk.hex("#6ABE82")); // sage green
+const WARNING   = color(chalk.hex("#DEB858")); // warm amber
+const ERROR     = color(chalk.hex("#D26060")); // muted coral red
+const INFO      = color(chalk.hex("#6CB4DC")); // sky blue
+const MUTED     = color(chalk.hex("#646464")); // neutral gray
+const TEXT      = color(chalk.hex("#D4D4D4")); // light text
+const TEXT_DIM  = color(chalk.hex("#969696")); // dimmed text
+const TOOL_CLR  = color(chalk.hex("#6CB4DC")); // tools = blue
+const USER_CLR  = color(chalk.hex("#D4D4D4")); // user = white
+const AI_CLR    = color(chalk.hex("#CC7832")); // AI = terracotta
+const IMG_CLR   = color(chalk.hex("#D28CB4")); // images = dusty rose
+const AUTO_CLR  = color(chalk.hex("#DEB858")); // autopilot = amber
 
 const SHELL_TIMEOUT_MS = parseInt(process.env.MEOWCLI_SHELL_TIMEOUT_MS || "30000", 10);
 const COLS = Math.min(process.stdout.columns || 80, 100);

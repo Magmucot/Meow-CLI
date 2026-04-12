@@ -1,6 +1,11 @@
-
 import { DEFAULT_CONFIG, log, saveConfig } from "../../core.js";
 
+/**
+ * Handles the /vacuum command for managing context auto-cleaning settings.
+ * @param {Object} ctx - CLI context.
+ * @param {string} input - User input.
+ * @returns {Promise<Object|null>}
+ */
 const handleVacuum = async (ctx, input) => {
   if (!input.startsWith("/vacuum")) return null;
   const args = input.split(" ").slice(1).filter(Boolean);

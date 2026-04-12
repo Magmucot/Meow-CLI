@@ -182,30 +182,6 @@ function complete(input) {
   return completeFilePath(input);
 }
 
-// ─── Colored Diff ───────────────────────────────────────────────────────────
-
-function colorDiff(diffText) {
-  if (!diffText) return "";
-  return diffText.split("\n").map(line => {
-    if (line.startsWith("+") && !line.startsWith("+++")) return `${SUCCESS}${line}${C.reset}`;
-    if (line.startsWith("-") && !line.startsWith("---")) return `${ERROR}${line}${C.reset}`;
-    if (line.startsWith("@@")) return `${INFO}${line}${C.reset}`;
-    if (line.startsWith("diff ") || line.startsWith("index ")) return `${ACCENT}${C.bold}${line}${C.reset}`;
-    return `${TEXT_DIM}${line}${C.reset}`;
-  }).join("\n");
-}
-
-// ─── Progress Bar ───────────────────────────────────────────────────────────
-
-function progressBar(current, total, width = 30, label = "") {
-  const pct = Math.min(current / Math.max(total, 1), 1);
-  const filled = Math.round(pct * width);
-  const empty = width - filled;
-  const bar = `${ACCENT}${"█".repeat(filled)}${MUTED}${"░".repeat(empty)}${C.reset}`;
-  const pctStr = `${Math.round(pct * 100)}%`;
-  return `${bar} ${TEXT_DIM}${pctStr}${label ? ` ${label}` : ""}${C.reset}`;
-}
-
 // ─── Singleton ──────────────────────────────────────────────────────────────
 
 let _preview = null;

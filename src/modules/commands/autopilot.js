@@ -1,6 +1,11 @@
-
 import { AUTO_CLR, C, log, Autopilot, printAutopilotConfig, saveConfig } from "../../core.js";
 
+/**
+ * Handles /autopilot, /ap-config, /ap-limit, /ap-errors, and /trigger commands.
+ * @param {Object} ctx - CLI context.
+ * @param {string} input - User input.
+ * @returns {Promise<Object|null>}
+ */
 const handleAutopilot = async (ctx, input) => {
   if (input.startsWith("/autopilot ") || input === "/autopilot") {
     const task = input.slice(11).trim();

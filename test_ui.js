@@ -8,6 +8,7 @@ const color = (hex) => {
   return new Proxy(wrapper, {
     get(target, prop) {
       if (prop === 'hexCode') return hex;
+      if (prop === 'toString') return () => fn.open || "";
       if (prop === Symbol.toPrimitive) return (hint) => (hint === 'number') ? null : (fn.open || "");
       const val = fn[prop];
       return typeof val === 'function' ? val.bind(fn) : val;

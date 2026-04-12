@@ -188,7 +188,7 @@ class StreamRenderer {
 // ─── Non-streaming Response Renderer ────────────────────────────────────────
 
 function renderNonStreaming(msg, data) {
-  console.log(`\n  ${AI_GRADIENT(C.bold("Assistant"))}`);
+  console.log(`\n  ${C.bold(AI_GRADIENT("Assistant"))}`);
   const output = renderMD(msg.content || "").trim();
   console.log(output.split("\n").map(l => `  ${MUTED("┃")}  ` + l).join("\n"));
   console.log(`  ${MUTED("└")}\n`);

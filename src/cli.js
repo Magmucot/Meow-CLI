@@ -170,17 +170,17 @@ class StreamRenderer {
     let formatted = line;
 
     // Bold
-    formatted = formatted.replace(/\*\*([^*]+)\*\*/g, `${C.bold}$1${C.reset}`);
+    formatted = formatted.replace(/\*\*([^*]+)\*\*/g, (m, p1) => C.bold(p1));
 
     // Inline code
-    formatted = formatted.replace(/`([^`]+)`/g, `${MUTED}$1${C.reset}`);
+    formatted = formatted.replace(/`([^`]+)`/g, (m, p1) => MUTED(p1));
 
     // Headers
     if (/^#{1,3}\s/.test(formatted)) {
-      formatted = `${ACCENT}${C.bold}${formatted}${C.reset}`;
+      formatted = ACCENT.bold(formatted);
     }
 
-    console.log(`  ${formatted}`);
+    console.log(`  ${MUTED("┃")}  ${formatted}`);
     this.lineCount++;
   }
 }

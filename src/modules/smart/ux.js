@@ -6,7 +6,10 @@
 import { exec, execSync } from "child_process";
 import path from "path";
 import os from "os";
-import { log, C, ACCENT, ACCENT2, MUTED, TEXT, TEXT_DIM, SUCCESS, ERROR, WARNING, INFO, TOOL_CLR, box, COLS } from "../ui.js";
+import {
+  log, C, ACCENT, ACCENT2, MUTED, TEXT, TEXT_DIM, SUCCESS, ERROR, WARNING, INFO, TOOL_CLR, box, COLS,
+  colorDiff, progressBar
+} from "../ui.js";
 
 // ─── Desktop Notifications ──────────────────────────────────────────────────
 

@@ -44,10 +44,17 @@ class MeowViewProvider {
 
 		webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
 
-		webviewView.webview.onDidReceiveMessage(data => {
+		webviewView.webview.onDidReceiveMessage(async data => {
 			switch (data.type) {
 				case 'sendMessage':
-					// Handle message
+					// Mock AI response for now to demonstrate UI
+					setTimeout(() => {
+						webviewView.webview.postMessage({ 
+							type: 'receiveMessage', 
+							role: 'ai', 
+							text: 'I am processing your request: ' + data.text 
+						});
+					}, 1000);
 					break;
 			}
 		});

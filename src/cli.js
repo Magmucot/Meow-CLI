@@ -436,6 +436,6 @@ async function main() {
 }
 
 main().catch(e => {
-  console.error(`\n  ${ERROR}${C.bold}Fatal Error:${C.reset} ${e.message}\n`);
+  console.error(`\n  ${ERROR.bold("Fatal Error:")} ${ERROR(e.message)}\n`);
   process.exit(1);
 });

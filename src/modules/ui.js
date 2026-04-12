@@ -1,7 +1,3 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// ui.js — Meow CLI UI (Modern Library-based + Custom Beauty)
-// ═══════════════════════════════════════════════════════════════════════════
-
 import path from "path";
 import { marked } from "marked";
 import TerminalRenderer from "marked-terminal";

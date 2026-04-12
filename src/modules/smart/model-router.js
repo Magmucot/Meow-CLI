@@ -1,13 +1,10 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// smart/model-router.js — Dynamic Model Selection & Cost Optimization
-// Cheap model for simple tasks, expensive for complex ones
-// ═══════════════════════════════════════════════════════════════════════════
-
 import { log, C, ACCENT, MUTED, TEXT_DIM, SUCCESS, WARNING } from "../ui.js";
 import { getModelPrice } from "../cost-tracker.js";
 
-// ─── Task Complexity Analyzer ───────────────────────────────────────────────
-
+/**
+ * Enumeration of task complexity levels.
+ * @enum {string}
+ */
 const Complexity = {
   TRIVIAL: "trivial",
   SIMPLE: "simple",
@@ -16,6 +13,7 @@ const Complexity = {
   EXPERT: "expert",
 };
 
+/** @type {Array<RegExp>} Regex patterns for identifying trivial tasks */
 const TRIVIAL_PATTERNS = [
   /^(list|ls|show|display|print)\b/i,
   /^(what|which|where) (is|are|was)\b/i,
@@ -24,6 +22,7 @@ const TRIVIAL_PATTERNS = [
   /^(explain|describe|summarize)\s+.{0,50}$/i,
 ];
 
+/** @type {Array<RegExp>} Regex patterns for identifying expert/complex tasks */
 const COMPLEX_PATTERNS = [
   /refactor\s+\d+\s+files?/i,
   /architect/i,
@@ -36,6 +35,12 @@ const COMPLEX_PATTERNS = [
   /migrate/i,
 ];
 
+/**
+ * Analyzes the complexity of a user message to determine routing.
+ * @param {string} message - The user input.
+ * @param {number} [contextLength=0] - Current length of the conversation context.
+ * @returns {string} One of the Complexity enum values.
+ */
 function analyzeComplexity(message, contextLength = 0) {
   if (!message || message.length < 10) return Complexity.TRIVIAL;
 
@@ -63,8 +68,10 @@ function analyzeComplexity(message, contextLength = 0) {
   return Complexity.EXPERT;
 }
 
-// ─── Model Tiers ────────────────────────────────────────────────────────────
-
+/**
+ * Mapping of complexity levels to model tiers.
+ * @type {Object<string, {tier: string, label: string}>}
+ */
 const MODEL_TIERS = {
   [Complexity.TRIVIAL]:  { tier: "fast",     label: "⚡ Fast" },
   [Complexity.SIMPLE]:   { tier: "fast",     label: "⚡ Fast" },
@@ -73,15 +80,20 @@ const MODEL_TIERS = {
   [Complexity.EXPERT]:   { tier: "powerful", label: "🧠 Powerful" },
 };
 
+/** @type {Object<string, string>} Default models for each tier */
 const DEFAULT_TIER_MODELS = {
   fast: "gpt-4o-mini",
   balanced: "gpt-4o",
   powerful: "gpt-4-turbo",
 };
 
-// ─── Model Router ───────────────────────────────────────────────────────────
-
+/**
+ * Routes requests to different models based on estimated task complexity.
+ */
 class ModelRouter {
+  /**
+   * @param {Object} cfg - Application configuration.
+   */
   constructor(cfg) {
     this.enabled = cfg.smart_routing?.enabled !== false;
     this.defaultModel = cfg.model;
@@ -89,11 +101,16 @@ class ModelRouter {
       fast: cfg.smart_routing?.fast_model || cfg.smart_routing?.cheap_model || DEFAULT_TIER_MODELS.fast,
       balanced: cfg.smart_routing?.balanced_model || cfg.model || DEFAULT_TIER_MODELS.balanced,
       powerful: cfg.smart_routing?.powerful_model || cfg.smart_routing?.expensive_model || DEFAULT_TIER_MODELS.powerful,
-    };
-    this.forceModel = cfg.smart_routing?.force_model || null;
+    };\n    this.forceModel = cfg.smart_routing?.force_model || null;
     this.stats = { trivial: 0, simple: 0, moderate: 0, complex: 0, expert: 0, savings: 0 };
   }
 
+  /**
+   * Selects the appropriate model for a given message.
+   * @param {string} message - User input.
+   * @param {number} [contextLength=0] - Context length.
+   * @returns {Object} Selection result (model, complexity, tier, etc).
+   */
   selectModel(message, contextLength = 0) {
     if (!this.enabled) return { model: this.defaultModel, complexity: null, routed: false };
     if (this.forceModel) return { model: this.forceModel, complexity: null, routed: false };
@@ -116,14 +133,20 @@ class ModelRouter {
     return { model, complexity, tier: tier.tier, label: tier.label, routed: model !== this.defaultModel };
   }
 
+  /**
+   * Returns routing statistics and estimated savings.
+   * @returns {Object}
+   */
   getStats() {
     return {
       ...this.stats,
       totalRouted: Object.values(this.stats).reduce((s, v) => s + (typeof v === "number" && v > 0 ? v : 0), 0) - this.stats.savings,
       estimatedSavings: `$${this.stats.savings.toFixed(4)}`,
-    };
-  }
+    };\n  }
 
+  /**
+   * Prints the current router configuration to the terminal.
+   */
   printConfig() {
     console.log(`\n  ${ACCENT}${C.bold}◆ Smart Routing${C.reset}`);
     console.log(`  ${MUTED}${"─".repeat(40)}${C.reset}`);
@@ -138,8 +161,11 @@ class ModelRouter {
   }
 }
 
-// ─── Structured Context Compression ─────────────────────────────────────────
-
+/**
+ * Compresses message history by extracting key state and removing old messages.
+ * @param {Array<Object>} messages - Conversation history.
+ * @returns {Object} Compaction result.
+ */
 function compressStructured(messages) {
   if (messages.length < 8) return { messages, compressed: false };
 
@@ -150,8 +176,7 @@ function compressStructured(messages) {
   const state = {
     filesRead: new Set(),
     filesModified: new Set(),
-    toolsUsed: {},
-    errorsEncountered: [],
+    toolsUsed: {},\n    errorsEncountered: [],
     decisions: [],
     lastPlan: "",
   };
@@ -169,11 +194,8 @@ function compressStructured(messages) {
             if (name === "read_file" || name === "list_dir") state.filesRead.add(args.path);
             if (name === "write_file" || name === "patch_file") state.filesModified.add(args.path);
           }
-        } catch {}
-      }
-    }
-
-    if (msg.role === "assistant" && content.includes("PLAN")) {
+        } catch {}\n      }
+    }\n    if (msg.role === "assistant" && content.includes("PLAN")) {
       state.lastPlan = content.slice(0, 500);
     }
     if (content.includes("❌") || content.includes("Error")) {
@@ -181,8 +203,7 @@ function compressStructured(messages) {
     }
   }
 
-  const summary = [
-    "[COMPRESSED CONTEXT]",
+  const summary = [\n    "[COMPRESSED CONTEXT]",
     state.lastPlan ? `Plan: ${state.lastPlan.slice(0, 300)}` : "",
     state.filesRead.size > 0 ? `Files read: ${[...state.filesRead].join(", ")}` : "",
     state.filesModified.size > 0 ? `Files modified: ${[...state.filesModified].join(", ")}` : "",
@@ -198,9 +219,12 @@ function compressStructured(messages) {
   };
 }
 
-// ─── Singleton ──────────────────────────────────────────────────────────────
-
 let _router = null;
+/**
+ * Singleton accessor for the ModelRouter.
+ * @param {Object} cfg - Application configuration.
+ * @returns {ModelRouter}
+ */
 function getModelRouter(cfg) {
   if (!_router || _router.defaultModel !== cfg.model) _router = new ModelRouter(cfg);
   return _router;

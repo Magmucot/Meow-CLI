@@ -1,4 +1,3 @@
-
 import {
   DEFAULT_CONFIG,
   ACCENT,
@@ -17,6 +16,12 @@ import {
   saveConfig
 } from "../../core.js";
 
+/**
+ * Handles /assistant commands for managing assistant profiles.
+ * @param {Object} ctx - CLI context.
+ * @param {string} input - User input.
+ * @returns {Promise<Object|null>}
+ */
 const handleAssistant = async (ctx, input) => {
   if (!input.startsWith("/assistant ")) return null;
 
@@ -62,10 +67,7 @@ const handleAssistant = async (ctx, input) => {
     if (!profile) { log.err(`Assistant '${name}' not found.`); return { handled: true }; }
     console.log("");
     console.log(box(
-      `${ACCENT}${C.bold}${name}${C.reset}
-${MUTED}temp:${C.reset} ${WARNING}${profile.temperature}${C.reset}
-
-${TEXT}${profile.system}${C.reset}`,
+      `${ACCENT}${C.bold}${name}${C.reset}\n${MUTED}temp:${C.reset} ${WARNING}${profile.temperature}${C.reset}\n\n${TEXT}${profile.system}${C.reset}`,
       { title: "🤖 Assistant", color: ACCENT2, width: Math.min(COLS - 2, 70) }
     ));
     console.log("");

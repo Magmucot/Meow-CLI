@@ -1,9 +1,11 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// commands/cost.js — /cost command
-// ═══════════════════════════════════════════════════════════════════════════
-
 import { log } from "../../core.js";
 
+/**
+ * Handles the /cost command for viewing token usage and estimated costs.
+ * @param {Object} ctx - CLI context.
+ * @param {string} input - User input.
+ * @returns {Promise<Object|null>}
+ */
 const handleCost = async (ctx, input) => {
   if (!input.startsWith("/cost")) return null;
 

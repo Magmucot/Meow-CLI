@@ -1,12 +1,14 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// commands/permissions.js — /permissions command
-// ═══════════════════════════════════════════════════════════════════════════
-
 import {
   ACCENT, MUTED, TEXT, TEXT_DIM, SUCCESS, ERROR, WARNING, C, log,
   getPermissionStore, LEVEL,
 } from "../../core.js";
 
+/**
+ * Handles the /permissions and /perm commands for managing tool execution rules.
+ * @param {Object} ctx - CLI context.
+ * @param {string} input - User input.
+ * @returns {Promise<Object|null>}
+ */
 const handlePermissions = async (ctx, input) => {
   if (!input.startsWith("/permissions") && !input.startsWith("/perm")) return null;
 

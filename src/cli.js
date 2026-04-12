@@ -253,7 +253,7 @@ async function main() {
         log.dim(`Memory: ${memStats.total} entries loaded`);
       }
     }
-  } catch {}
+  } catch { }
 
   // Show banner
   ctx.refreshBanner();
@@ -332,7 +332,7 @@ async function main() {
           log.dim(`${route.label} → ${route.model}`);
         }
       }
-    } catch {}
+    } catch { }
 
     const effectiveCfg = routedModel ? { ...ctx.cfg, model: routedModel } : ctx.cfg;
 
@@ -406,7 +406,7 @@ async function main() {
           if (data.usage) {
             costTracker.record(data.usage, ctx.cfg.model);
             const costStr = costTracker.formatInline(data.usage, ctx.cfg.model);
-            console.log(`  ${MUTED}${costStr}${C.reset}`);
+            console.log(`  ${MUTED(costStr)}`);
           }
 
           ctx.messages.push(msg);

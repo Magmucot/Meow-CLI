@@ -1,15 +1,14 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// commands/v3.js — All v3 Feature Commands
-// /lead, /delegate, /memory, /pair, /preview, /ci, /audit, /incognito, /routing
-// ═══════════════════════════════════════════════════════════════════════════
-
 import {
   log, C, ACCENT, ACCENT2, MUTED, TEXT, TEXT_DIM, SUCCESS, ERROR, WARNING,
   saveConfig,
 } from "../../core.js";
 
-// ─── /lead — AI Lead Developer Mode ─────────────────────────────────────────
-
+/**
+ * Handles the /lead command for AI Lead Developer mode.
+ * @param {Object} ctx - CLI context.
+ * @param {string} input - User input.
+ * @returns {Promise<Object|null>}
+ */
 const handleLead = async (ctx, input) => {
   if (!input.startsWith("/lead")) return null;
 
@@ -38,8 +37,12 @@ const handleLead = async (ctx, input) => {
   return { handled: true };
 };
 
-// ─── /delegate — Quick task delegation ──────────────────────────────────────
-
+/**
+ * Handles the /delegate command for quick task delegation.
+ * @param {Object} ctx - CLI context.
+ * @param {string} input - User input.
+ * @returns {Promise<Object|null>}
+ */
 const handleDelegate = async (ctx, input) => {
   if (!input.startsWith("/delegate ")) return null;
 
@@ -75,8 +78,12 @@ const handleDelegate = async (ctx, input) => {
   return { handled: true };
 };
 
-// ─── /memory — RAG Memory System ────────────────────────────────────────────
-
+/**
+ * Handles the /memory command for RAG memory system management.
+ * @param {Object} ctx - CLI context.
+ * @param {string} input - User input.
+ * @returns {Promise<Object|null>}
+ */
 const handleMemory = async (ctx, input) => {
   if (!input.startsWith("/memory")) return null;
 
@@ -134,8 +141,12 @@ const handleMemory = async (ctx, input) => {
   return { handled: true };
 };
 
-// ─── /pair — Pair Programming Mode ──────────────────────────────────────────
-
+/**
+ * Handles the /pair command for pair programming mode.
+ * @param {Object} ctx - CLI context.
+ * @param {string} input - User input.
+ * @returns {Promise<Object|null>}
+ */
 const handlePair = async (ctx, input) => {
   if (!input.startsWith("/pair")) return null;
 
@@ -167,8 +178,12 @@ const handlePair = async (ctx, input) => {
   return { handled: true };
 };
 
-// ─── /preview — Live Preview ────────────────────────────────────────────────
-
+/**
+ * Handles the /preview command for live preview management.
+ * @param {Object} ctx - CLI context.
+ * @param {string} input - User input.
+ * @returns {Promise<Object|null>}
+ */
 const handlePreview = async (ctx, input) => {
   if (!input.startsWith("/preview")) return null;
 
@@ -191,8 +206,12 @@ const handlePreview = async (ctx, input) => {
   return { handled: true };
 };
 
-// ─── /ci — CI/CD Management ─────────────────────────────────────────────────
-
+/**
+ * Handles the /ci command for CI/CD management.
+ * @param {Object} ctx - CLI context.
+ * @param {string} input - User input.
+ * @returns {Promise<Object|null>}
+ */
 const handleCI = async (ctx, input) => {
   if (!input.startsWith("/ci")) return null;
 
@@ -235,8 +254,12 @@ const handleCI = async (ctx, input) => {
   return { handled: true };
 };
 
-// ─── /audit — Audit Log ─────────────────────────────────────────────────────
-
+/**
+ * Handles the /audit command for security audit log management.
+ * @param {Object} ctx - CLI context.
+ * @param {string} input - User input.
+ * @returns {Promise<Object|null>}
+ */
 const handleAudit = async (ctx, input) => {
   if (!input.startsWith("/audit")) return null;
 
@@ -255,8 +278,12 @@ const handleAudit = async (ctx, input) => {
   return { handled: true };
 };
 
-// ─── /incognito — Incognito Mode ────────────────────────────────────────────
-
+/**
+ * Handles the /incognito command for incognito mode management.
+ * @param {Object} ctx - CLI context.
+ * @param {string} input - User input.
+ * @returns {Promise<Object|null>}
+ */
 const handleIncognito = async (ctx, input) => {
   if (!input.startsWith("/incognito")) return null;
 
@@ -278,8 +305,12 @@ const handleIncognito = async (ctx, input) => {
   return { handled: true };
 };
 
-// ─── /routing — Smart Model Routing ─────────────────────────────────────────
-
+/**
+ * Handles the /routing command for smart model routing management.
+ * @param {Object} ctx - CLI context.
+ * @param {string} input - User input.
+ * @returns {Promise<Object|null>}
+ */
 const handleRouting = async (ctx, input) => {
   if (!input.startsWith("/routing")) return null;
 

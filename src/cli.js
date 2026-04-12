@@ -161,7 +161,7 @@ class StreamRenderer {
     }
 
     if (this.started) {
-      console.log(`  ${MUTED}${"─".repeat(Math.min(COLS - 4, 50))}${C.reset}`);
+      console.log(`  ${MUTED("└")}\n`);
     }
   }
 

@@ -1,6 +1,11 @@
-
 import { ACCENT, MUTED, TEXT, TEXT_DIM, C, log, loadPins, savePins, timeAgo } from "../../core.js";
 
+/**
+ * Handles /pin and /pins commands for managing pinned messages.
+ * @param {Object} ctx - CLI context.
+ * @param {string} input - User input.
+ * @returns {Promise<Object|null>}
+ */
 const handlePins = async (ctx, input) => {
   if (input.startsWith("/pin")) {
     const parts = input.split(" ");

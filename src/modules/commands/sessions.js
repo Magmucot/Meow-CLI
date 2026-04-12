@@ -1,9 +1,11 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// commands/sessions.js — /sessions command
-// ═══════════════════════════════════════════════════════════════════════════
-
 import { log, C, SUCCESS, MUTED } from "../../core.js";
 
+/**
+ * Handles the /session command for managing persistent chat sessions.
+ * @param {Object} ctx - CLI context.
+ * @param {string} input - User input.
+ * @returns {Promise<Object|null>}
+ */
 const handleSessions = async (ctx, input) => {
   if (!input.startsWith("/session")) return null;
 
@@ -26,7 +28,6 @@ const handleSessions = async (ctx, input) => {
     const data = ctx.sessionMgr.load(id);
     if (!data) { log.err(`Session '${id}' not found`); return { handled: true }; }
 
-    // Restore session state
     ctx.messages = data.messages || [{ role: "system", content: ctx.cfg.profiles[ctx.cfg.profile].system }];
     ctx.history = ctx.messages.filter(m => m.role !== "system");
     log.ok(`Session '${id}' loaded (${data.messagesCount} messages)`);

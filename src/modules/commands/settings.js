@@ -1,4 +1,3 @@
-
 import {
   ACCENT,
   ACCENT2,
@@ -13,6 +12,12 @@ import {
   I18N
 } from "../../core.js";
 
+/**
+ * Handles /key, /url, /lang, /model, /profile, /temp, /git, and /config commands.
+ * @param {Object} ctx - CLI context.
+ * @param {string} input - User input.
+ * @returns {Promise<Object|null>}
+ */
 const handleSettings = async (ctx, input) => {
   if (input.startsWith("/key ")) {
     ctx.cfg.api_key = input.split(" ")[1];

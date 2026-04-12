@@ -250,18 +250,19 @@ function printChatList(state) {
   const names = Object.keys(state.chats || {}).sort();
   if (names.length === 0) { log.dim("No chats yet."); return; }
 
-  console.log("");
+  log.br();
   console.log(`  ${ACCENT}${C.bold}Chats${C.reset}`);
   console.log(`  ${MUTED}${"─".repeat(45)}${C.reset}`);
 
-  for (const name of names) {
+  const rows = names.map(name => {
     const msgs = (state.chats[name] || []).length;
     const isCurrent = name === state.current;
     const indicator = isCurrent ? `${SUCCESS}●${C.reset}` : `${MUTED}○${C.reset}`;
     const nameColor = isCurrent ? `${SUCCESS}${C.bold}` : `${TEXT}`;
-    console.log(`  ${indicator} ${nameColor}${name}${C.reset}  ${MUTED}${msgs} msgs${C.reset}`);
-  }
+    return [indicator, `${nameColor}${name}${C.reset}`, `${MUTED}${msgs} msgs${C.reset}`];
+  });
 
+  table(rows, { colSpacing: 1 });
   console.log(`  ${MUTED}${"─".repeat(45)}${C.reset}\n`);
 }
 

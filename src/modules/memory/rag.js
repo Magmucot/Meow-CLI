@@ -1,3 +1,8 @@
+/**
+ * RAG Memory module for Meow CLI.
+ * Provides long-term memory, cross-project learning, and adaptive preferences using TF-IDF similarity.
+ */
+
 // ═══════════════════════════════════════════════════════════════════════════
 // memory/rag.js — Project Memory & RAG System
 // Long-term memory, cross-project learning, adaptive preferences

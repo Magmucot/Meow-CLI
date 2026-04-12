@@ -68,7 +68,7 @@ marked.use(markedTerminal({
   hr: () => `\n${MUTED("─".repeat(Math.min(COLS - 4, 60)))}\n`,
 }));
 
-function box(content, { title = "", color = "#CC7832", width = COLS - 2, padding = 1, style = "rounded" } = {}) {
+function box(content, { title = "", color = "#CC7832", width = COLS - 2, padding = 1, style = "round" } = {}) {
   return boxen(content, {
     title,
     borderColor: color?.hexCode || color || "#CC7832",

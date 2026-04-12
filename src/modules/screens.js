@@ -4,7 +4,7 @@
 
 import {
   ACCENT, ACCENT2, ACCENT3, SUCCESS, WARNING, ERROR, MUTED,
-  TEXT, TEXT_DIM, AUTO_CLR, INFO, C, COLS, box, log, stripAnsi
+  TEXT, TEXT_DIM, AUTO_CLR, INFO, C, COLS, box, table, list, log, stripAnsi
 } from "./ui.js";
 import { t } from "./config.js";
 import { listPlugins } from "./plugins.js";

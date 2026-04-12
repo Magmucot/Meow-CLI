@@ -43,25 +43,33 @@ function getModelPrice(model) {
  */
 class CostTracker {
   constructor() {
+    /** @type {Object} Session usage summary */
     this.sessionCost = { input_tokens: 0, output_tokens: 0, total_usd: 0, requests: 0 };
+    /** @type {Array<Object>} History of individual requests */
     this.history = [];
+    /** @type {Object} All-time usage summary */
+    this.totalCost = { input_tokens: 0, output_tokens: 0, total_usd: 0, requests: 0, since: Date.now() };
     this._loadTotal();
   }
 
-  /** @private */
+  /**
+   * Loads total cost from persistent storage.
+   * @private
+   */
   _loadTotal() {
     try {
       if (fs.existsSync(COST_FILE)) {
         this.totalCost = JSON.parse(fs.readFileSync(COST_FILE, "utf8"));
-      } else {
-        this.totalCost = { input_tokens: 0, output_tokens: 0, total_usd: 0, requests: 0, since: Date.now() };
       }
     } catch {
-      this.totalCost = { input_tokens: 0, output_tokens: 0, total_usd: 0, requests: 0, since: Date.now() };
+      // Keep defaults
     }
   }
 
-  /** @private */
+  /**
+   * Saves total cost to persistent storage.
+   * @private
+   */
   _saveTotal() {
     try {
       fs.mkdirSync(path.dirname(COST_FILE), { recursive: true });

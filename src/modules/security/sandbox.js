@@ -21,46 +21,97 @@ class WorkspaceSandbox {
     this.blockedPatterns = [
       /\.ssh/i, /\.gnupg/i, /\.aws\/credentials/i, /\.env(?:\.local)?$/i,
       /id_rsa/, /id_ed25519/, /\.pem$/, /\.key$/,
-      /\/etc\/passwd/, /\/etc\/shadow/,
+      /\/etc\/passwd/, /\/etc\/shadow/, /\/etc\/sudoers/,
+      /\.bash_history/, /\.zsh_history/,
+      /\.node_repl_history/, /\.npmrc$/, /\.yarnrc$/,
+      /config\.json$/i, // Generic config files often contain keys
     ];
     this.blockedCommands = [
       /rm\s+(-rf?|--recursive)\s+\//,
       />\s*\/dev\/sd/, /mkfs\./, /dd\s+.*of=\/dev/,
       /:()\{\s*:\|:&\s*\};:/, // fork bomb
       /curl.*\|\s*(ba)?sh/, /wget.*\|\s*(ba)?sh/,
-      /chmod\s+777\s+\//, /chown\s+.*\//,
+      /chmod\s+777\s+\//, /chown\s+.* \//,
+      /kill\s+-9\s+1/, /shutdown/, /reboot/,
+      /passwd\s+root/, /visudo/,
+    ];
+    this.blockedEnvVars = [
+      /API_KEY/i, /SECRET/i, /PASSWORD/i, /TOKEN/i, /AUTH/i,
+      /AWS_/i, /AZURE_/i, /GOOGLE_/i, /CLOUDFLARE_/i,
+      /SSH_AUTH_SOCK/, /KUBECONFIG/
     ];
   }
 
   isPathAllowed(targetPath) {
-    const resolved = path.resolve(targetPath);
-    if (!resolved.startsWith(this.root + path.sep) && resolved !== this.root) {
-      if (!resolved.startsWith(os.tmpdir())) return { allowed: false, reason: `Outside workspace: ${resolved}` };
+    try {
+      const resolved = path.resolve(targetPath);
+      let realPath;
+      try {
+        // Resolve symlinks to prevent escaping via links
+        realPath = fs.existsSync(resolved) ? fs.realpathSync(resolved) : resolved;
+      } catch {
+        realPath = resolved;
+      }
+
+      // Check if it's within workspace or tmp
+      const isUnderRoot = realPath.startsWith(this.root + path.sep) || realPath === this.root;
+      const isUnderTmp = realPath.startsWith(os.tmpdir());
+
+      if (!isUnderRoot && !isUnderTmp) {
+        return { allowed: false, reason: `Access outside workspace: ${realPath}` };
+      }
+
+      for (const pattern of this.blockedPatterns) {
+        if (pattern.test(realPath)) return { allowed: false, reason: `Sensitive path blocked: ${realPath}` };
+      }
+      return { allowed: true };
+    } catch (e) {
+      return { allowed: false, reason: `Path validation error: ${e.message}` };
     }
-    for (const pattern of this.blockedPatterns) {
-      if (pattern.test(resolved)) return { allowed: false, reason: `Sensitive path blocked: ${resolved}` };
-    }
-    return { allowed: true };
   }
 
   isCommandAllowed(cmd) {
     for (const pattern of this.blockedCommands) {
       if (pattern.test(cmd)) return { allowed: false, reason: `Dangerous command blocked` };
     }
+    // Check for access to blocked patterns in the command string itself
     for (const pattern of this.blockedPatterns) {
-      if (pattern.test(cmd)) return { allowed: false, reason: `Command accesses sensitive path` };
+      if (pattern.test(cmd)) return { allowed: false, reason: `Command attempts to access sensitive path` };
     }
     return { allowed: true };
+  }
+
+  filterEnv(env = process.env) {
+    const safeEnv = {};
+    for (const [key, value] of Object.entries(env)) {
+      const isBlocked = this.blockedEnvVars.some(pattern => pattern.test(key));
+      if (!isBlocked) {
+        safeEnv[key] = value;
+      }
+    }
+    return safeEnv;
   }
 
   validate(toolName, args) {
     switch (toolName) {
       case "write_file":
       case "patch_file":
-      case "read_file": return this.isPathAllowed(args.path || "");
-      case "run_shell": return this.isCommandAllowed(args.cmd || "");
-      case "list_dir": return this.isPathAllowed(args.path || ".");
-      default: return { allowed: true };
+      case "read_file":
+      case "git_diff":
+      case "git_commit":
+        return this.isPathAllowed(args.path || args.file || "");
+      case "run_shell":
+        return this.isCommandAllowed(args.cmd || "");
+      case "list_dir":
+        return this.isPathAllowed(args.path || ".");
+      case "http_request":
+        // Basic URL validation
+        if (args.url && (args.url.startsWith("file://") || args.url.includes("169.254.169.254"))) {
+          return { allowed: false, reason: "SSRF protection: Local or metadata URL blocked" };
+        }
+        return { allowed: true };
+      default:
+        return { allowed: true };
     }
   }
 }
@@ -120,6 +171,7 @@ class AuditLogger {
 
   getRecentEntries(count = 50) {
     try {
+      if (!fs.existsSync(AUDIT_FILE)) return [];
       const lines = fs.readFileSync(AUDIT_FILE, "utf8").trim().split("\n");
       return lines.slice(-count).map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
     } catch { return []; }

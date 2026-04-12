@@ -153,23 +153,7 @@ function editContext(editor = null) {
   const editorCmd = editor || process.env.EDITOR || process.env.VISUAL || "nano";
 
   if (!fs.existsSync(localPath)) {
-    const template = `# Project Context for Meow CLI
-
-## Project Description
-<!-- Describe your project here -->
-
-## Architecture
-<!-- Key architecture decisions -->
-
-## Coding Standards
-<!-- Your coding conventions -->
-
-## Important Files
-<!-- Key files the AI should know about -->
-
-## Rules
-<!-- Specific rules for the AI to follow -->
-`;
+    const template = `# Project Context for Meow CLI\n\n## Project Description\n<!-- Describe your project here -->\n\n## Architecture\n<!-- Key architecture decisions -->\n\n## Coding Standards\n<!-- Your coding conventions -->\n\n## Important Files\n<!-- Key files the AI should know about -->\n\n## Rules\n<!-- Specific rules for the AI to follow -->\n`;
     fs.writeFileSync(localPath, template, "utf8");
     log.ok(`Created ${localPath}`);
   }

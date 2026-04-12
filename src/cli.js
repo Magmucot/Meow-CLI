@@ -137,7 +137,7 @@ class StreamRenderer {
 
     if (!this.started) {
       // Print header on first chunk
-      console.log(`\n  ${AI_GRADIENT(C.bold("Assistant"))}`);
+      console.log(`\n  ${C.bold(AI_GRADIENT("Assistant"))}`);
       this.started = true;
     }
 

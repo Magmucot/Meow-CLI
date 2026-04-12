@@ -52,18 +52,16 @@ const COLS = Math.min(process.stdout.columns || 80, 100);
 const MEOW_GRADIENT = gradient(["#CC7832", "#EBCB8B", "#A98EDA"]);
 const AI_GRADIENT = gradient(["#CC7832", "#A98EDA"]);
 
-marked.use({
-  renderer: new TerminalRenderer({
-    code: (code) => `\n${MUTED("  ┃")} ${code}\n`,
-    blockquote: (quote) => `  ${MUTED("┃")} ${TEXT_DIM(quote)}\n`,
-    heading: (text, level) => {
-      if (level === 1) return `\n${ACCENT.bold("# " + text)}\n`;
-      if (level === 2) return `\n${ACCENT2.bold("## " + text)}\n`;
-      return `\n${TEXT.bold(text)}\n`;
-    },
-    hr: () => `\n${MUTED("─".repeat(Math.min(COLS - 4, 60)))}\n`,
-  })
-});
+marked.use(markedTerminal({
+  code: (code) => `\n${MUTED("  ┃")} ${code}\n`,
+  blockquote: (quote) => `  ${MUTED("┃")} ${TEXT_DIM(quote)}\n`,
+  heading: (text, level) => {
+    if (level === 1) return `\n${ACCENT.bold("# " + text)}\n`;
+    if (level === 2) return `\n${ACCENT2.bold("## " + text)}\n`;
+    return `\n${TEXT.bold(text)}\n`;
+  },
+  hr: () => `\n${MUTED("─".repeat(Math.min(COLS - 4, 60)))}\n`,
+}));
 
 function box(content, { title = "", color = "#CC7832", width = COLS - 2, padding = 1, style = "rounded" } = {}) {
   return boxen(content, {

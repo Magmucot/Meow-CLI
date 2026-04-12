@@ -37,7 +37,7 @@ const handleAssistant = async (ctx, input) => {
       .filter(name => !DEFAULT_CONFIG.profiles[name])
       .sort();
     console.log("");
-    console.log(`  ${ACCENT}${C.bold}◆ Assistents${C.reset}`);
+    console.log(`  ${ACCENT}${C.bold}◆ Assistants${C.reset}`);
     console.log(`  ${MUTED}${"─".repeat(40)}${C.reset}`);
     if (names.length === 0) {
       console.log(`  ${MUTED}(none)${C.reset}`);

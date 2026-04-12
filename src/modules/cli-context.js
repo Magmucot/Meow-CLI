@@ -71,22 +71,18 @@ const registerSignalHandlers = (ctx) => {
 
   process.on("SIGINT", () => {
     if (ctx.activeAutopilot && ctx.activeAutopilot.running) {
-      console.log(`
-  ${WARNING}▲ Stopping autopilot...${C.reset}`);
+      console.log(`\n  ${WARNING("▲ Stopping autopilot...")}`);
       ctx.activeAutopilot.abort();
       return;
     }
 
     ctrlCCount++;
     if (ctrlCCount == 1) {
-      console.log(`
-  ${MUTED}Press Ctrl+C again to exit${C.reset}`);
+      console.log(`\n  ${MUTED("Press Ctrl+C again to exit")}`);
       ctrlCTimer = setTimeout(() => { ctrlCCount = 0; }, 2000);
     } else {
       clearTimeout(ctrlCTimer);
-      console.log(`
-  ${ACCENT}${C.bold}Goodbye! 👋${C.reset}
-`);
+      console.log(`\n  ${ACCENT.bold("Goodbye! 👋")}\n`);
       process.exit(0);
     }
   });

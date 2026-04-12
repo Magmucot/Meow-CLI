@@ -44,7 +44,7 @@ function banner(cfg, currentChat, historyLen, pinsCount = 0) {
   if (!cfg.api_key) {
     console.log("");
     console.log(box(
-      `${WARNING.bold(t(cfg, "api_key_missing_title"))}\n${TEXT_DIM(t(cfg, "api_key_missing_hint"))}`,
+      `${C.bold(WARNING(t(cfg, "api_key_missing_title")))}\n${TEXT_DIM(t(cfg, "api_key_missing_hint"))}`,
       { title: "⚠ Setup Required", color: "#DEB858", width: Math.min(COLS - 2, 55) }
     ));
   }
@@ -59,7 +59,7 @@ function printHelp(cfg) {
 
   const sections = [
     {
-      title: `💬 ${t(cfg, "help_title_chat")}`,
+      title: t(cfg, "help_title_chat"),
       items: [
         ["/clear",              t(cfg, "cmd_clear")],
         ["/chat list",          t(cfg, "cmd_chat_list")],
@@ -69,7 +69,7 @@ function printHelp(cfg) {
       ]
     },
     {
-      title: `🤖 ${t(cfg, "help_title_autopilot")}`,
+      title: t(cfg, "help_title_autopilot"),
       items: [
         ["/autopilot <task>",   t(cfg, "cmd_autopilot")],
         ["/ap <task>",          t(cfg, "cmd_autopilot_short")],
@@ -81,7 +81,7 @@ function printHelp(cfg) {
       ]
     },
     {
-      title: `🖼  ${t(cfg, "help_title_images")}`,
+      title: t(cfg, "help_title_images"),
       items: [
         ["/img <path> [text]",  t(cfg, "cmd_img_path")],
         ["/img <url> [text]",   t(cfg, "cmd_img_url")],
@@ -89,7 +89,7 @@ function printHelp(cfg) {
       ]
     },
     {
-      title: `🔧 ${t(cfg, "help_title_tools")}`,
+      title: t(cfg, "help_title_tools"),
       items: [
         ["/list <path>",        t(cfg, "cmd_list")],
         ["/read <file>",        t(cfg, "cmd_read")],
@@ -146,7 +146,7 @@ function printHelp(cfg) {
       ]
     },
     {
-      title: `⚙  ${t(cfg, "help_title_settings")}`,
+      title: t(cfg, "help_title_settings"),
       items: [
         ["/model [name]",       `${t(cfg, "cmd_model")} ${MUTED("(" + cfg.model + ")")}`],
         ["/profile [name]",     `${t(cfg, "cmd_profile")} ${MUTED("(" + cfg.profile + ")")}`],
@@ -161,7 +161,7 @@ function printHelp(cfg) {
       ]
     },
     {
-      title: `📦 ${t(cfg, "help_title_other")}`,
+      title: t(cfg, "help_title_other"),
       items: [
         ["/undo [N]",           t(cfg, "cmd_undo")],
         ["/export <file>",      t(cfg, "cmd_export")],
@@ -180,7 +180,7 @@ function printHelp(cfg) {
   ];
 
   for (const section of sections) {
-    console.log(`  ${AI_GRADIENT(C.bold(section.title))}\n`);
+    console.log(`  ${C.bold(AI_GRADIENT(stripAnsi(section.title)))}\n`);
     table(section.items.map(([cmd, desc]) => [
       `${TEXT.bold(cmd)}`,
       `${MUTED(desc)}`
@@ -225,7 +225,7 @@ function printStats(cfg, currentChat, historyLen, pinsCount = 0) {
     ["CWD",             `${MUTED(process.cwd())}`],
   ];
 
-  console.log(`  ${AI_GRADIENT(C.bold(t(cfg, "stats_title")))}`);
+  console.log(`  ${C.bold(AI_GRADIENT(stripAnsi(t(cfg, "stats_title"))))}`);
   console.log(`  ${MUTED("─".repeat(50))}`);
   table(rows.map(([label, value]) => [`${TEXT_DIM(label)}`, value]), { colWidths: [18] });
   console.log(`  ${MUTED("─".repeat(50))}\n`);
@@ -252,7 +252,7 @@ function printChatList(state) {
   if (names.length === 0) { log.dim("No chats yet."); return; }
 
   log.br();
-  console.log(`  ${AI_GRADIENT(C.bold("Chats"))}`);
+  console.log(`  ${C.bold(AI_GRADIENT("Chats"))}`);
   console.log(`  ${MUTED("─".repeat(45))}`);
 
   const rows = names.map(name => {
@@ -271,7 +271,7 @@ function printChatList(state) {
 
 function printConfig(cfg) {
   console.log("");
-  console.log(`  ${AI_GRADIENT(C.bold("Configuration"))}`);
+  console.log(`  ${C.bold(AI_GRADIENT("Configuration"))}`);
   console.log(`  ${MUTED("─".repeat(50))}`);
 
   const safe = { ...cfg, api_key: cfg.api_key ? cfg.api_key.slice(0, 8) + "…" : "(not set)" };
@@ -296,7 +296,7 @@ function printAutopilotConfig(cfg) {
   const ap = cfg.autopilot || {};
 
   log.br();
-  console.log(`  ${AI_GRADIENT(C.bold("🤖 Autopilot Configuration"))}`);
+  console.log(`  ${C.bold(AI_GRADIENT("🤖 Autopilot Configuration"))}`);
   console.log(`  ${MUTED("─".repeat(45))}`);
 
   const rows = [

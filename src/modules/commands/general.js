@@ -1,4 +1,3 @@
-
 import {
   C,
   ACCENT,
@@ -10,6 +9,12 @@ import {
   loadPins
 } from "../../core.js";
 
+/**
+ * Handles general CLI commands like /exit, /help, /stats, /clear.
+ * @param {Object} ctx - CLI context.
+ * @param {string} input - User input.
+ * @returns {Promise<Object|null>}
+ */
 const handleGeneral = async (ctx, input) => {
   if (input === "/exit") return { handled: true, exit: true };
 

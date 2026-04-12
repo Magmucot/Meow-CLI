@@ -107,13 +107,13 @@ function saveAssistantProfile(name, system, temperature) {
  */
 function loadConfig() {
   const cfg = loadJson(CONF_FILE, DEFAULT_CONFIG);
-  const assistentProfiles = loadAssistentsFromDir();
+  const assistantProfiles = loadAssistantsFromDir();
   return {
     ...DEFAULT_CONFIG, ...cfg,
     autopilot: { ...DEFAULT_CONFIG.autopilot, ...(cfg.autopilot || {}) },
     plugins: { ...DEFAULT_CONFIG.plugins, ...(cfg.plugins || {}) },
     vacuum: { ...DEFAULT_CONFIG.vacuum, ...(cfg.vacuum || {}) },
-    profiles:  { ...DEFAULT_CONFIG.profiles,  ...(cfg.profiles  || {}), ...assistentProfiles },
+    profiles:  { ...DEFAULT_CONFIG.profiles,  ...(cfg.profiles  || {}), ...assistantProfiles },
     templates: { ...DEFAULT_CONFIG.templates, ...(cfg.templates || {}) },
     aliases:   { ...DEFAULT_CONFIG.aliases,   ...(cfg.aliases   || {}) }
   };
@@ -124,9 +124,9 @@ function loadConfig() {
  * @param {Object} cfg - Configuration to save.
  */
 function saveConfig(cfg) {
-  const assistentProfiles = loadAssistentsFromDir();
+  const assistantProfiles = loadAssistantsFromDir();
   const cleanedProfiles = { ...cfg.profiles };
-  for (const name of Object.keys(assistentProfiles)) {
+  for (const name of Object.keys(assistantProfiles)) {
     delete cleanedProfiles[name];
   }
   saveJson(CONF_FILE, { ...cfg, profiles: cleanedProfiles });

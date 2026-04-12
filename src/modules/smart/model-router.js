@@ -1,3 +1,8 @@
+/**
+ * Model Router module for Meow CLI.
+ * Automatically selects the best model based on task complexity and token budget.
+ */
+
 import { log, C, ACCENT, MUTED, TEXT_DIM, SUCCESS, WARNING } from "../ui.js";
 import { getModelPrice } from "../cost-tracker.js";
 

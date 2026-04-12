@@ -2,20 +2,8 @@ import { TOOL_CLR, C, MUTED, TEXT_DIM, ERROR, WARNING, COLS, log } from "./ui.js
 import { executeTool } from "./tools.js";
 import { askPermission, getPermissionStore } from "./permissions.js";
 
-/**
- * Set of tools that do not modify the file system or environment.
- * @type {Set<string>}
- */
 const READONLY_TOOLS = new Set(["list_dir", "read_file", "grep_search", "git_diff", "git_log", "git_status"]);
 
-/**
- * Orchestrates tool execution, including permission checks, sandboxing, and auditing.
- * @param {Object} msg - The assistant message containing tool calls.
- * @param {Array<Object>} messages - Conversation history to append results to.
- * @param {Object} cfg - Application configuration.
- * @param {Object|null} [checkpointMgr=null] - Optional manager for file system checkpoints.
- * @returns {Promise<boolean>} True if tool calls were processed.
- */
 async function handleTools(msg, messages, cfg, checkpointMgr = null) {
   if (!msg.tool_calls || msg.tool_calls.length === 0) return false;
 
@@ -23,8 +11,7 @@ async function handleTools(msg, messages, cfg, checkpointMgr = null) {
   const count = msg.tool_calls.length;
   const permStore = getPermissionStore();
 
-  let sandbox = null;
-  let audit = null;
+  let sandbox = null, audit = null;
   try {
     const sec = await import("./security/sandbox.js");
     sandbox = sec.getSandbox();
@@ -37,14 +24,11 @@ async function handleTools(msg, messages, cfg, checkpointMgr = null) {
     memHooks = mem.getMemoryHooks();
   } catch {}
 
-  console.log("");
-  console.log(`  ${TOOL_CLR}┃${C.reset} ${TOOL_CLR}${C.bold}Tools${C.reset} ${MUTED}(${count} call${count > 1 ? "s" : ""})${C.reset}`);
+  console.log(`\n  ${TOOL_CLR("┃")} ${TOOL_CLR.bold("Tools")} ${MUTED("(" + count + " call" + (count > 1 ? "s" : "") + ")")}`);
 
-  const readCalls = [];
-  const writeCalls = [];
+  const readCalls = [], writeCalls = [];
   for (const call of msg.tool_calls) {
-    const name = call.function.name;
-    if (READONLY_TOOLS.has(name)) readCalls.push(call);
+    if (READONLY_TOOLS.has(call.function.name)) readCalls.push(call);
     else writeCalls.push(call);
   }
 
@@ -53,18 +37,17 @@ async function handleTools(msg, messages, cfg, checkpointMgr = null) {
       const name = call.function.name;
       let args = {};
       try { args = JSON.parse(call.function.arguments); } catch {}
-
       const argsStr = JSON.stringify(args);
       const short = argsStr.length > 60 ? argsStr.slice(0, 57) + "…" : argsStr;
-      console.log(`  ${TOOL_CLR}┃${C.reset} ${TOOL_CLR}${C.bold}${name}${C.reset} ${MUTED}${short}${C.reset}`);
+      console.log(`  ${TOOL_CLR("┃")} ${TOOL_CLR.bold(name)} ${MUTED(short)}`);
 
       if (sandbox) {
         const check = sandbox.validate(name, args);
         if (!check.allowed) {
-          const result = `❌ Blocked by sandbox: ${check.reason}`;
-          console.log(`  ${MUTED}┃${C.reset}   ${WARNING}${result}${C.reset}`);
+          const res = `❌ Blocked by sandbox: ${check.reason}`;
+          console.log(`  ${MUTED("┃")}   ${WARNING(res)}`);
           if (audit) audit.logPermission(name, "sandbox_blocked");
-          return { call, result };
+          return { call, result: res };
         }
       }
 
@@ -78,76 +61,62 @@ async function handleTools(msg, messages, cfg, checkpointMgr = null) {
     for (const { call, result } of readResults) {
       if (result) {
         const lines = result.split("\n").slice(0, 3);
-        for (const line of lines) console.log(`  ${MUTED}┃${C.reset}   ${TEXT_DIM}${line.slice(0, COLS - 8)}${C.reset}`);
-        if (result.split("\n").length > 3) console.log(`  ${MUTED}┃${C.reset}   ${MUTED}… +${result.split("\n").length - 3} lines${C.reset}`);
+        for (const line of lines) console.log(`  ${MUTED("┃")}   ${TEXT_DIM(line.slice(0, COLS - 8))}`);
+        if (result.split("\n").length > 3) console.log(`  ${MUTED("┃")}   ${MUTED("… +" + (result.split("\n").length - 3) + " lines")}`);
       }
       messages.push({ role: "tool", tool_call_id: call.id, content: result || "" });
     }
   } else {
     writeCalls.unshift(...readCalls);
-    readCalls.length = 0;
   }
 
   for (let i = 0; i < writeCalls.length; i++) {
     const call = writeCalls[i];
-    let name = call.function.name;
+    const name = call.function.name;
     let args = {};
     try { args = JSON.parse(call.function.arguments); } catch { args = {}; }
-
-    const argsStr = typeof args === "string" ? args : JSON.stringify(args);
+    const argsStr = JSON.stringify(args);
     const short = argsStr.length > 60 ? argsStr.slice(0, 57) + "…" : argsStr;
-    const counter = count > 1 ? `${MUTED}[${readCalls.length + i + 1}/${count}]${C.reset} ` : "";
-    console.log(`  ${TOOL_CLR}┃${C.reset} ${counter}${TOOL_CLR}${C.bold}${name}${C.reset} ${MUTED}${short}${C.reset}`);
+    const counter = count > 1 ? `${MUTED("[" + (readCalls.length + i + 1) + "/" + count + "]")} ` : "";
+    console.log(`  ${TOOL_CLR("┃")} ${counter}${TOOL_CLR.bold(name)} ${MUTED(short)}`);
 
     if (sandbox) {
       const check = sandbox.validate(name, args);
       if (!check.allowed) {
-        const result = `❌ Blocked by sandbox: ${check.reason}`;
-        console.log(`  ${MUTED}┃${C.reset}   ${WARNING}${result}${C.reset}`);
+        const res = `❌ Blocked by sandbox: ${check.reason}`;
+        console.log(`  ${MUTED("┃")}   ${WARNING(res)}`);
         if (audit) audit.logPermission(name, "sandbox_blocked");
-        messages.push({ role: "tool", tool_call_id: call.id, content: result });
+        messages.push({ role: "tool", tool_call_id: call.id, content: res });
         continue;
       }
     }
 
     const allowed = await askPermission(name, args, permStore, cfg.auto_yes);
     if (!allowed) {
-      const result = `❌ Permission denied for ${name}`;
-      console.log(`  ${MUTED}┃${C.reset}   ${ERROR}${result}${C.reset}`);
+      const res = `❌ Permission denied for ${name}`;
+      console.log(`  ${MUTED("┃")}   ${ERROR(res)}`);
       if (audit) audit.logPermission(name, "denied");
-      messages.push({ role: "tool", tool_call_id: call.id, content: result });
+      messages.push({ role: "tool", tool_call_id: call.id, content: res });
       continue;
     }
 
     if (audit) audit.logPermission(name, "allowed");
-
-    if (checkpointMgr && (name === "write_file" || name === "patch_file") && args.path) {
-      checkpointMgr.create(`${name}: ${args.path}`, [args.path]);
-    }
+    if (checkpointMgr && (name === "write_file" || name === "patch_file") && args.path) checkpointMgr.create(`${name}: ${args.path}`, [args.path]);
 
     const env = sandbox ? sandbox.filterEnv() : process.env;
     let result = await executeTool(name, args, cfg, env);
-
     if (audit) audit.logToolCall(name, args, result);
     if (memHooks) memHooks.afterToolCall(name, args, result || "");
 
     if (result) {
       const lines = result.split("\n").slice(0, 5);
-      for (const line of lines) {
-        const trimmed = line.slice(0, COLS - 8);
-        console.log(`  ${MUTED}┃${C.reset}   ${TEXT_DIM}${trimmed}${C.reset}`);
-      }
-      if (result.split("\n").length > 5) {
-        console.log(`  ${MUTED}┃${C.reset}   ${MUTED}… +${result.split("\n").length - 5} more lines${C.reset}`);
-      }
+      for (const line of lines) console.log(`  ${MUTED("┃")}   ${TEXT_DIM(line.slice(0, COLS - 8))}`);
+      if (result.split("\n").length > 5) console.log(`  ${MUTED("┃")}   ${MUTED("… +" + (result.split("\n").length - 5) + " more lines")}`);
     }
-
     messages.push({ role: "tool", tool_call_id: call.id, content: result });
   }
 
-  console.log(`  ${TOOL_CLR}┃${C.reset} ${MUTED}done${C.reset}`);
-  console.log("");
-
+  console.log(`  ${TOOL_CLR("┃")} ${MUTED("done")}\n`);
   return true;
 }
 

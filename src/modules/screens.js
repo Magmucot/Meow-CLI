@@ -6,12 +6,16 @@ import {
 import { t } from "./config.js";
 import { listPlugins } from "./plugins.js";
 
-// ─── Banner (Modern & Beautiful) ───────────────────────────
-
+/**
+ * Renders the main application banner.
+ * @param {Object} cfg - The configuration object.
+ * @param {string} currentChat - Name of the current chat session.
+ * @param {number} historyLen - Number of messages in history.
+ * @param {number} [pinsCount=0] - Number of pinned items.
+ */
 function banner(cfg, currentChat, historyLen, pinsCount = 0) {
   console.clear();
 
-  // Gradient Logo — using the new MEOW_GRADIENT
   const logoText = `
   ╔╦╗╔═╗╔═╗╦ ╦  ╔═╗╦  ╦
   ║║║║╣ ║ ║║║║  ║  ║  ║
@@ -22,7 +26,6 @@ function banner(cfg, currentChat, historyLen, pinsCount = 0) {
   console.log(`  ${MUTED(t(cfg, "banner_subtitle"))}`);
   console.log(`  ${MUTED("─".repeat(Math.min(COLS - 4, 50)))}`);
 
-  // Status line — Compact key:value pairs
   const pairs = [
     [`model`,   `${ACCENT(cfg.model)}`],
     [`profile`, `${ACCENT2(cfg.profile)}`],
@@ -36,7 +39,6 @@ function banner(cfg, currentChat, historyLen, pinsCount = 0) {
     .join(`  ${MUTED("·")}  `);
   console.log(`  ${statusLine}`);
 
-  // API key warning
   if (!cfg.api_key) {
     console.log("");
     console.log(box(
@@ -48,8 +50,10 @@ function banner(cfg, currentChat, historyLen, pinsCount = 0) {
   console.log(`\n  ${MUTED(t(cfg, "type_help"))}\n`);
 }
 
-// ─── Help Screen ──────────────────────
-
+/**
+ * Prints the help screen with all available commands.
+ * @param {Object} cfg - The configuration object.
+ */
 function printHelp(cfg) {
   log.br();
 
@@ -184,7 +188,6 @@ function printHelp(cfg) {
     log.br();
   }
 
-  // Aliases footer
   const aliasEntries = Object.entries(cfg.aliases);
   if (aliasEntries.length > 0) {
     const aliasStr = aliasEntries
@@ -194,8 +197,13 @@ function printHelp(cfg) {
   }
 }
 
-// ─── Stats ────────────────────────────
-
+/**
+ * Prints the current session statistics.
+ * @param {Object} cfg - The configuration object.
+ * @param {string} currentChat - Name of the current chat.
+ * @param {number} historyLen - History length.
+ * @param {number} [pinsCount=0] - Number of pinned items.
+ */
 function printStats(cfg, currentChat, historyLen, pinsCount = 0) {
   log.br();
   const profile = cfg.profiles[cfg.profile] || cfg.profiles.default;
@@ -227,6 +235,11 @@ function printStats(cfg, currentChat, historyLen, pinsCount = 0) {
   console.log(`  ${MUTED("─".repeat(50))}\n`);
 }
 
+/**
+ * Generates a summary string of installed plugins.
+ * @param {Object} cfg - The configuration object.
+ * @returns {string} - Plugin summary.
+ */
 function getPluginSummary(cfg) {
   const plugins = listPlugins();
   const total = plugins.length;
@@ -241,8 +254,10 @@ function getPluginSummary(cfg) {
   return parts.join(` ${MUTED("·")} `);
 }
 
-// ─── Chat List ──────────────────────────────────────────────────────────────
-
+/**
+ * Prints the list of available chat sessions.
+ * @param {Object} state - Current application state.
+ */
 function printChatList(state) {
   const names = Object.keys(state.chats || {}).sort();
   if (names.length === 0) { log.dim("No chats yet."); return; }
@@ -263,8 +278,10 @@ function printChatList(state) {
   console.log(`  ${MUTED("─".repeat(45))}\n`);
 }
 
-// ─── Config Display ─────────────────────────────────────────────────────────
-
+/**
+ * Prints the current configuration (masked sensitive data).
+ * @param {Object} cfg - The configuration object.
+ */
 function printConfig(cfg) {
   console.log("");
   console.log(`  ${C.bold(AI_GRADIENT("Configuration"))}`);
@@ -286,8 +303,10 @@ function printConfig(cfg) {
   console.log(`  ${MUTED("─".repeat(50))}\n`);
 }
 
-// ─── Autopilot Config ───────────────────────────────────────────────────────
-
+/**
+ * Prints autopilot-specific configuration.
+ * @param {Object} cfg - The configuration object.
+ */
 function printAutopilotConfig(cfg) {
   const ap = cfg.autopilot || {};
 
@@ -308,14 +327,17 @@ function printAutopilotConfig(cfg) {
   console.log(`  ${MUTED("─".repeat(45))}\n`);
 }
 
-// ─── Prompt ─────────────────
-
+/**
+ * Generates the shell prompt string.
+ * @param {Object} cfg - The configuration object.
+ * @param {string} currentChat - Current chat name.
+ * @param {number} [historyLen=0] - History length.
+ * @returns {string} - The prompt title.
+ */
 function makePrompt(cfg, currentChat, historyLen = 0) {
   const modelShort = cfg.model.length > 18 ? cfg.model.slice(0, 15) + "…" : cfg.model;
   return `${currentChat} · ${modelShort} · ${historyLen} msgs`;
 }
-
-// ─── Exports ────────────────────────────────────────────────────────────────
 
 export {
   banner,

@@ -448,9 +448,7 @@ async function main() {
     }
   }
 
-  console.log("");
-  console.log(`  ${ACCENT}${C.bold}Goodbye! 👋${C.reset}`);
-  console.log("");
+  outro(ACCENT.bold("Goodbye! 👋"));
 }
 
 main().catch(e => {

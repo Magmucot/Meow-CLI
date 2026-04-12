@@ -86,7 +86,7 @@ const TOOLS = [
         properties: {
           pattern: { type: "string", description: "Search pattern (regex supported)" },
           path: { type: "string", description: "Directory or file to search in (default: current dir)" },
-          include: { type: "string", description: "File glob pattern to include (e.g. '*.js', '*.py')" },
+          include: { type: "string", description: "File glob pattern to include (e.g. '*.js', '*.py')\"" },
           max_results: { type: "number", description: "Maximum results to return (default: 50)" }
         },
         required: ["pattern"]
@@ -212,35 +212,7 @@ const TOOLS = [
   }
 ];
 
-// ─── Confirmation Dialog ────────────────────────────────────────────────────
-
-async function confirm(action, detail, auto_yes = false) {
-  if (auto_yes) return true;
-  return new Promise(resolve => {
-    console.log("");
-    console.log(box(
-      `${WARNING}${C.bold}${action}${C.reset}\n${MUTED}${detail.slice(0, 500)}${detail.length > 500 ? "…" : ""}`,
-      { title: "⚠ CONFIRM", color: WARNING, width: Math.min(COLS - 2, 70) }
-    ));
-    process.stdout.write(`\n  ${TEXT}Execute? ${MUTED}[${SUCCESS}y${MUTED}/${ERROR}N${MUTED}] ${TEXT_DIM}(auto-yes 10s)${C.reset} `);
-
-    const onData = (d) => {
-      clearTimeout(timer);
-      process.stdin.off("data", onData);
-      const answer = d.toString().trim().toLowerCase();
-      if (answer === "y") { console.log(`  ${SUCCESS}✓ Confirmed${C.reset}\n`); resolve(true); }
-      else { console.log(`  ${ERROR}✗ Cancelled${C.reset}\n`); resolve(false); }
-    };
-
-    const timer = setTimeout(() => {
-      process.stdin.off("data", onData);
-      console.log(`  ${SUCCESS}✓ Auto-confirmed${C.reset}\n`);
-      resolve(true);
-    }, 10000);
-
-    process.stdin.on("data", onData);
-  });
-}
+// ─── UI Helpers (Internal) ──────────────────────────────────────────────────
 
 async function promptLine(prompt, auto_yes = false, defaultValue = "") {
   if (auto_yes) return defaultValue || "";
@@ -462,24 +434,11 @@ function readFile(p, startLine, endLine) {
   } catch (e) { return `❌ Read error: ${e.message}`; }
 }
 
-async function writeFile(p, content, auto_yes = false, cfg = {}) {
+async function writeFile(p, content, cfg = {}) {
   try {
     const file = path.resolve(p);
     const existed = fs.existsSync(file);
     const old = existed ? fs.readFileSync(file, "utf8") : "";
-
-    // Show diff for existing files
-    if (existed) {
-      const diff = createTwoFilesPatch(file, file, old, content, "Old", "New");
-      if (diff.trim() && diff.length > 100) {
-        const ok = await confirm("Write file: " + describeFileChange(file), diff.slice(0, 3000), auto_yes);
-        if (!ok) return "❌ Write cancelled.";
-      }
-    } else {
-      const preview = content.length > 200 ? content.slice(0, 200) + "…" : content;
-      const ok = await confirm("Create new file: " + describeFileChange(file), preview, auto_yes);
-      if (!ok) return "❌ Creation cancelled.";
-    }
 
     // Save undo state
     const undoState = loadUndoState();
@@ -496,9 +455,7 @@ async function writeFile(p, content, auto_yes = false, cfg = {}) {
   } catch (e) { return `❌ Write error: ${e.message}`; }
 }
 
-// ─── NEW: Patch File (targeted edit) ────────────────────────────────────────
-
-async function patchFile(p, oldString, newString, auto_yes = false, cfg = {}) {
+async function patchFile(p, oldString, newString, cfg = {}) {
   try {
     const file = path.resolve(p);
     if (!fs.existsSync(file) || !fs.statSync(file).isFile()) {
@@ -537,11 +494,6 @@ async function patchFile(p, oldString, newString, auto_yes = false, cfg = {}) {
     // Apply patch
     const patched = original.slice(0, index) + newString + original.slice(index + oldString.length);
 
-    // Show diff
-    const diff = createTwoFilesPatch(file, file, original, patched, "Before", "After");
-    const ok = await confirm("Patch file: " + describeFileChange(file), diff.slice(0, 3000), auto_yes);
-    if (!ok) return "❌ Patch cancelled.";
-
     // Save undo state
     const undoState = loadUndoState();
     undoState.push({ path: file, existed: true, content: original, time: Date.now() });
@@ -556,8 +508,6 @@ async function patchFile(p, oldString, newString, auto_yes = false, cfg = {}) {
     return `✅ Patched: ${desc} (line ~${lineNum}, ${oldString.split("\n").length} lines → ${newString.split("\n").length} lines)`;
   } catch (e) { return `❌ Patch error: ${e.message}`; }
 }
-
-// ─── NEW: Grep Search ───────────────────────────────────────────────────────
 
 function grepSearch(pattern, searchPath, include, maxResults = 50) {
   try {
@@ -647,9 +597,7 @@ function grepSearchJS(pattern, dir, include, maxResults) {
 
 // ─── Shell ──────────────────────────────────────────────────────────────────
 
-async function runShell(cmd, auto_yes = false, cfg = {}) {
-  const ok = await confirm("Shell command", cmd, auto_yes);
-  if (!ok) return "❌ Cancelled.";
+async function runShell(cmd, cfg = {}, env = process.env) {
   const timeoutMs = Number.isFinite(SHELL_TIMEOUT_MS) && SHELL_TIMEOUT_MS > 0 ? SHELL_TIMEOUT_MS : 30000;
   return new Promise(resolve => {
     exec(
@@ -659,6 +607,7 @@ async function runShell(cmd, auto_yes = false, cfg = {}) {
         cwd: process.cwd(),
         timeout: timeoutMs,
         killSignal: "SIGTERM",
+        env: env,
       },
       (err, stdout, stderr) => {
         const output = [];
@@ -680,10 +629,8 @@ async function runShell(cmd, auto_yes = false, cfg = {}) {
 
 // ─── HTTP & Search ──────────────────────────────────────────────────────────
 
-async function httpRequest({ url, method = "GET", headers = {}, body = "", timeout_ms = 15000 }, auto_yes = false) {
+async function httpRequest({ url, method = "GET", headers = {}, body = "", timeout_ms = 15000 }) {
   if (!url) return "❌ Error: url required";
-  const ok = await confirm("HTTP Request", `${method} ${url}`, auto_yes);
-  if (!ok) return "❌ Cancelled.";
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeout_ms);
   try {
@@ -707,11 +654,9 @@ async function httpRequest({ url, method = "GET", headers = {}, body = "", timeo
   } finally { clearTimeout(t); }
 }
 
-async function webSearch({ query, max_results = 5 }, auto_yes = false) {
+async function webSearch({ query, max_results = 5 }) {
   if (!query) return "❌ Error: query required";
   const url = `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
-  const ok = await confirm("Web Search", query, auto_yes);
-  if (!ok) return "❌ Cancelled.";
   try {
     const res = await fetch(url, { headers: { "User-Agent": "meowcli/1.0" } });
     const html = await res.text();
@@ -732,12 +677,12 @@ async function webSearch({ query, max_results = 5 }, auto_yes = false) {
 
 // ─── Tool Chain ─────────────────────────────────────────────────────────────
 
-async function toolChain(steps, cfg) {
+async function toolChain(steps, cfg, env) {
   if (!Array.isArray(steps) || steps.length === 0) return "❌ Error: steps empty";
   const outputs = [];
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i] || {};
-    let result = await executeTool(step.tool, step.args || {}, cfg);
+    let result = await executeTool(step.tool, step.args || {}, cfg, env);
     outputs.push({ step: i + 1, tool: step.tool, result });
   }
   return JSON.stringify(outputs, null, 2);
@@ -745,21 +690,21 @@ async function toolChain(steps, cfg) {
 
 // ─── Tool Router ────────────────────────────────────────────────────────────
 
-async function executeTool(name, args, cfg) {
+async function executeTool(name, args, cfg, env = process.env) {
   const cleanName = (name || "").replace(/^proxy_/, "");
   switch (cleanName) {
     case "list_dir":      return listDir(args.path, args.recursive);
     case "read_file":     return readFile(args.path, args.start_line, args.end_line);
-    case "write_file":    return await writeFile(args.path, args.content, cfg.auto_yes, cfg);
-    case "patch_file":    return await patchFile(args.path, args.old_string, args.new_string, cfg.auto_yes, cfg);
+    case "write_file":    return await writeFile(args.path, args.content, cfg);
+    case "patch_file":    return await patchFile(args.path, args.old_string, args.new_string, cfg);
     case "grep_search":   return grepSearch(args.pattern, args.path, args.include, args.max_results);
-    case "run_shell":     return await runShell(args.cmd, cfg.auto_yes, cfg);
+    case "run_shell":     return await runShell(args.cmd, cfg, env);
     case "ask_user":      return await askUser(args.question, cfg.auto_yes, args.default || "");
     case "confirm":       return String(await confirmUser(args.message, cfg.auto_yes, args.default));
     case "choose":        return await chooseUser(args.question, args.options, cfg.auto_yes, args.default_index);
-    case "http_request":  return await httpRequest(args, cfg.auto_yes);
-    case "web_search":    return await webSearch(args, cfg.auto_yes);
-    case "tool_chain":    return await toolChain(args.steps, cfg);
+    case "http_request":  return await httpRequest(args);
+    case "web_search":    return await webSearch(args);
+    case "tool_chain":    return await toolChain(args.steps, cfg, env);
     // ─── v3: New tools ──────────────────────────────────────────────────
     case "delegate_task": {
       const { delegateTask } = await import("./agents/subagent.js");
@@ -892,7 +837,7 @@ const ALL_TOOLS = [...TOOLS, ...EXTENDED_TOOLS];
 
 export {
   TOOLS, ALL_TOOLS, EXTENDED_TOOLS,
-  confirm, promptLine, askUser, confirmUser, chooseUser,
+  promptLine, askUser, confirmUser, chooseUser,
   listDir, readFile, writeFile, patchFile, grepSearch,
   runShell, httpRequest, webSearch, toolChain, executeTool
 };

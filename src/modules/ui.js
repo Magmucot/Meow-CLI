@@ -13,7 +13,7 @@ const color = (hex) => {
     get(target, prop) {
       if (prop === 'hexCode') return hex;
       if (prop === 'toString' || prop === Symbol.toPrimitive) {
-        return (hint) => (hint === 'number' ? null : (fn.open || ""));
+        return () => fn.open;
       }
       const val = fn[prop];
       if (typeof val === 'function') {
@@ -28,20 +28,20 @@ const color = (hex) => {
 };
 
 const C = {
-  reset:     { toString: () => chalk.reset.open, ...chalk.reset },
-  bold:      chalk.bold,
-  dim:       chalk.dim,
-  italic:    chalk.italic,
-  underline: chalk.underline,
-  inverse:   chalk.inverse,
-  gray:      chalk.gray,
-  red:       chalk.red,
-  green:     chalk.green,
-  yellow:    chalk.yellow,
-  blue:      chalk.blue,
-  magenta:   chalk.magenta,
-  cyan:      chalk.cyan,
-  white:     chalk.white,
+  reset:     { [Symbol.toPrimitive]: () => chalk.reset.open, ...chalk.reset },
+  bold:      { [Symbol.toPrimitive]: () => chalk.bold.open, ...chalk.bold },
+  dim:       { [Symbol.toPrimitive]: () => chalk.dim.open, ...chalk.dim },
+  italic:    { [Symbol.toPrimitive]: () => chalk.italic.open, ...chalk.italic },
+  underline: { [Symbol.toPrimitive]: () => chalk.underline.open, ...chalk.underline },
+  inverse:   { [Symbol.toPrimitive]: () => chalk.inverse.open, ...chalk.inverse },
+  gray:      { [Symbol.toPrimitive]: () => chalk.gray.open, ...chalk.gray },
+  red:       { [Symbol.toPrimitive]: () => chalk.red.open, ...chalk.red },
+  green:     { [Symbol.toPrimitive]: () => chalk.green.open, ...chalk.green },
+  yellow:    { [Symbol.toPrimitive]: () => chalk.yellow.open, ...chalk.yellow },
+  blue:      { [Symbol.toPrimitive]: () => chalk.blue.open, ...chalk.blue },
+  magenta:   { [Symbol.toPrimitive]: () => chalk.magenta.open, ...chalk.magenta },
+  cyan:      { [Symbol.toPrimitive]: () => chalk.cyan.open, ...chalk.cyan },
+  white:     { [Symbol.toPrimitive]: () => chalk.white.open, ...chalk.white },
 };
 
 const ACCENT    = color("#CC7832");

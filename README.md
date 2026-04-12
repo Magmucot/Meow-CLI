@@ -1,81 +1,61 @@
-# 🐈 Meow CLI — Next-gen Terminal AI Agent
+# 🐾 Meow CLI v3
 
-Meow CLI is a powerful, autonomous, and beautiful terminal-based AI Agent. Inspired by the best of Claude Code and modern CLI tools, it provides a high-performance environment for building, refactoring, and automating your projects.
+**Next-gen Terminal AI Agent.**  
+Powerful, hierarchical, and context-aware assistant for developers.
 
-![License](https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-blue.svg)
-![Node](https://img.shields.io/badge/node-%3E%3D18-green.svg)
+---
 
+## 🚀 Overview
+Meow CLI is a high-performance terminal AI agent built with Node.js. It's designed to be more than just a chatbot; it's a tool-equipped autonomous agent capable of managing complex development tasks, parallelizing subtasks, and learning from your project environment.
 
-## 🚀 Features
+## ✨ Key Features
 
-### 🔀 Autonomous Multi-Agent System
-*   **Hierarchical Delegation**: The main agent can split complex tasks into subtasks and delegate them to parallel sub-agents.
-*   **Parallel Execution**: Up to 8 sub-agents can work simultaneously on different parts of your codebase.
-*   **Autonomous Mode**: Full autopilot mode for long-running tasks with self-correction.
+### 🔀 Hierarchical Sub-Agents
+The agent can autonomously decide to spawn parallel sub-agents to handle large tasks. For example, "Refactor imports in the entire project" will be split into multiple sub-tasks executed in parallel.
 
-### 🧠 Intelligence & Memory
-*   **RAG Memory System**: Automatically learns your code style, preferences, and common error fixes.
-*   **Smart Model Routing**: Dynamically selects the best model (GPT-4o, GPT-4o-mini, etc.) based on task complexity to save costs.
-*   **Project Context (MEOW.md)**: Automatically loads and injects project-specific rules and context into every prompt.
+### 🧠 RAG Memory System
+Meow CLI learns as it works. It stores decisions, error fixes, and your preferences in a local vector-like store (TF-IDF + JSON), injecting relevant context into every conversation.
 
-### 🔧 Developer Toolset
-*   **19+ Specialized Tools**: From filesystem operations and grep search to HTTP requests and web search.
-*   **Full Git Integration**: `git_diff`, `git_log`, `git_commit`, `git_branch`, `git_status` available to the AI.
-*   **CI/CD Management**: Generate, status, and self-heal GitHub Actions workflows.
+### 🎯 AI Lead Developer Mode
+The `/lead` command puts the agent in "Lead Developer" mode. It analyzes your project, suggests the next logical steps, and can even execute them autonomously.
 
-### ✨ Modern UX
-*   **Beautiful UI**: Gradient logos, clean status lines, and sophisticated progress bars.
-*   **Interactive Prompts**: Modern multiline input with autocomplete and syntax highlighting.
-*   **Pair Programming Modes**: Choose between Verbose, Balanced, and Silent feedback levels.
-*   **Live Preview**: Integrated dev server management.
+### 🚀 CI/CD & Git Intelligence
+Equipped with deep Git integration. It can generate GitHub Actions, check pipeline status, and even "self-heal" failing tests by analyzing logs and applying patches.
 
 ### 🔒 Enterprise-Grade Security
-*   **Workspace Sandbox**: Prevents any file operations outside your project directory.
-*   **Audit Logging**: Every tool call is logged to `audit.log` for transparency.
-*   **Incognito Mode**: Sessions that leave no trace on your disk.
+Built-in workspace sandbox prevents the agent from touching files outside your project. Every tool call is logged to an audit trail for transparency.
 
-## 🛠 Installation
+---
 
-```bash
-# Clone the repository
-git clone https://github.com/cons0leweb/meow-cli.git
-cd meow-cli
+## 🚦 Quick Start
 
-# Install dependencies
-npm install
+1. **Start Meow:**
+   ```bash
+   node index.js
+   ```
+2. **Setup your API Key:**
+   ```bash
+   /key sk-your-api-key-here
+   ```
+3. **Ask for help:**
+   ```bash
+   /help
+   ```
 
-# Link for global use
-npm link
-```
+---
 
-## 📖 Quick Start
+## 📖 Essential Commands
 
-```bash
-# Start the interactive shell
-meow
+| Command | Description |
+|---------|-------------|
+| `/lead` | Activate AI Lead Developer mode |
+| `/delegate <task>` | Spawn parallel sub-agents for a task |
+| `/memory stats` | View what the AI has learned about your project |
+| `/ci heal` | Attempt to fix failing tests autonomously |
+| `/routing on` | Enable smart model selection |
+| `/compact --ai` | Summarize history using AI to save tokens |
 
-# Or use pipe mode
-echo "Refactor this code" | meow --pipe
-```
+---
 
-### Common Commands
-
-*   `/help` — Show all available commands.
-*   `/lead auto` — AI Lead Developer mode: suggests and executes improvements.
-*   `/delegate <task>` — Run a task in parallel using sub-agents.
-*   `/memory stats` — See what the AI has learned about your project.
-*   `/routing on` — Enable smart model selection.
-*   `/cost` — Show current session usage and cost.
-
-## 📂 Project Structure
-
-*   `src/cli.js` — Main interactive loop and routing logic.
-*   `src/modules/agents/` — Autonomous agent implementations.
-*   `src/modules/memory/` — RAG memory and learning system.
-*   `src/modules/smart/` — CI/CD, Routing, and UX logic.
-*   `src/modules/security/` — Sandbox and audit logging.
-*   `src/modules/commands/` — Command handlers for the interactive shell.
-
-## 📄 License
-
-MIT © [cons0leweb](https://github.com/cons0leweb)
+## 📜 License
+MIT © cons0leweb

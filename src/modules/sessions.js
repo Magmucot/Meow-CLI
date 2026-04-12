@@ -1,8 +1,3 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// sessions.js — Meow CLI Session Management
-// Save/restore full session state across terminal restarts
-// ═══════════════════════════════════════════════════════════════════════════
-
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
@@ -10,8 +5,12 @@ import { SESSION_DIR } from "./config.js";
 import { log, C, SUCCESS, MUTED, TEXT, TEXT_DIM, ACCENT, COLS } from "./ui.js";
 import { timeAgo } from "./utils.js";
 
+/** @type {number} Maximum number of sessions to keep */
 const MAX_SESSIONS = 20;
 
+/**
+ * Manages persistent chat sessions, allowing users to save and resume conversations.
+ */
 class SessionManager {
   constructor() {
     this.sessionId = null;
@@ -19,13 +18,23 @@ class SessionManager {
     fs.mkdirSync(this.dir, { recursive: true });
   }
 
-  // Create a new session
+  /**
+   * Creates a new session ID.
+   * @returns {string} The new session ID.
+   */
   create() {
     this.sessionId = crypto.randomUUID().slice(0, 8);
     return this.sessionId;
   }
 
-  // Save session state
+  /**
+   * Saves the current session state to disk.
+   * @param {Object} state - The session state to save.
+   * @param {string} [state.model] - The model used in the session.
+   * @param {string} [state.profile] - The profile name.
+   * @param {string} [state.chat] - The chat mode.
+   * @param {Array<Object>} [state.messages] - Conversation history.
+   */
   save(state) {
     if (!this.sessionId) this.create();
 
@@ -63,7 +72,11 @@ class SessionManager {
     this._prune();
   }
 
-  // Load a session
+  /**
+   * Loads a session by its ID.
+   * @param {string} sessionId - The session ID to load.
+   * @returns {Object|null} The session data or null if not found.
+   */
   load(sessionId) {
     const file = path.join(this.dir, `${sessionId}.json`);
     if (!fs.existsSync(file)) return null;
@@ -77,7 +90,10 @@ class SessionManager {
     }
   }
 
-  // List all sessions
+  /**
+   * Lists all available sessions.
+   * @returns {Array<Object>} Sorted list of session metadata.
+   */
   list() {
     const sessions = [];
     try {
@@ -94,14 +110,18 @@ class SessionManager {
             chat: data.chat,
             messagesCount: data.messagesCount || 0,
           });
-        } catch { /* skip */ }
+        } catch { }
       }
-    } catch { /* ignore */ }
+    } catch { }
 
     return sessions.sort((a, b) => b.time - a.time);
   }
 
-  // Delete a session
+  /**
+   * Deletes a session file.
+   * @param {string} sessionId - ID of the session to delete.
+   * @returns {boolean} True if deleted successfully.
+   */
   delete(sessionId) {
     const file = path.join(this.dir, `${sessionId}.json`);
     if (fs.existsSync(file)) {
@@ -111,7 +131,10 @@ class SessionManager {
     return false;
   }
 
-  // Prune old sessions
+  /**
+   * Prunes old sessions if the count exceeds MAX_SESSIONS.
+   * @private
+   */
   _prune() {
     const sessions = this.list();
     if (sessions.length <= MAX_SESSIONS) return;
@@ -122,7 +145,9 @@ class SessionManager {
     }
   }
 
-  // Print session list
+  /**
+   * Prints the list of sessions to the terminal.
+   */
   printList() {
     const sessions = this.list();
 
@@ -146,6 +171,5 @@ class SessionManager {
     console.log(`  ${MUTED}${"─".repeat(55)}${C.reset}\n`);
   }
 }
-
 
 export { SessionManager };

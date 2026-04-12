@@ -315,12 +315,7 @@ function printAutopilotConfig(cfg) {
 
 function makePrompt(cfg, currentChat, historyLen = 0) {
   const modelShort = cfg.model.length > 18 ? cfg.model.slice(0, 15) + "…" : cfg.model;
-
-  return [
-    ``,
-    `  ${MUTED(currentChat)} ${MUTED("·")} ${MUTED(modelShort)} ${MUTED("·")} ${MUTED(historyLen + " msgs")}`,
-    `  ${ACCENT.bold("❯")} `
-  ].join("\n");
+  return `${currentChat} · ${modelShort} · ${historyLen} msgs`;
 }
 
 // ─── Exports ────────────────────────────────────────────────────────────────

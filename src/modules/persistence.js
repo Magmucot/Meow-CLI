@@ -53,7 +53,7 @@ function normalizeAssistantProfile(name, data) {
  * Loads all assistant profiles from the assistants directory.
  * @returns {Object} Map of profile names to profile objects.
  */
-function loadAssistentsFromDir() {
+function loadAssistantsFromDir() {
   const profiles = {};
   try { fs.mkdirSync(ASSIST_DIR, { recursive: true }); } catch {}
   if (!fs.existsSync(ASSIST_DIR)) return profiles;

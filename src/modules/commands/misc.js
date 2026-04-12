@@ -1,4 +1,3 @@
-
 import fs from "fs";
 import {
   ACCENT,
@@ -12,6 +11,12 @@ import {
   saveHistoryState
 } from "../../core.js";
 
+/**
+ * Handles miscellaneous commands like /alias, /export, /import, and /template.
+ * @param {Object} ctx - CLI context.
+ * @param {string} input - User input.
+ * @returns {Promise<Object|null>}
+ */
 const handleMisc = async (ctx, input) => {
   if (input === "/alias") {
     console.log(""); console.log(`  ${ACCENT}${C.bold}◆ Aliases${C.reset}`);

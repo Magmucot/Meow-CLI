@@ -1,20 +1,24 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// project-context.js — Meow CLI Project Context (MEOW.md)
-// Reads project context files and injects into system prompt
-// ═══════════════════════════════════════════════════════════════════════════
-
 import fs from "fs";
 import path from "path";
 import { GLOBAL_MEOW_MD } from "./config.js";
 import { log, C, ACCENT, MUTED, TEXT, TEXT_DIM, box, COLS } from "./ui.js";
 
+/** @type {string} Default filename for local project context */
 const LOCAL_MEOW_MD = "MEOW.md";
+/** @type {RegExp} Pattern for !include directives in context files */
 const INCLUDE_RE = /^!include\s+(.+)$/gm;
-const MAX_CONTEXT_SIZE = 50000; // 50KB max
+/** @type {number} Maximum size of a context file in characters */
+const MAX_CONTEXT_SIZE = 50000;
+/** @type {number} Maximum recursion depth for !include */
 const MAX_INCLUDE_DEPTH = 3;
 
-// ─── Load Context ───────────────────────────────────────────────────────────
-
+/**
+ * Recursively resolves !include directives in context files.
+ * @param {string} content - Raw file content.
+ * @param {string} basePath - Directory of the current file.
+ * @param {number} [depth=0] - Current recursion depth.
+ * @returns {string} Content with inclusions resolved.
+ */
 function resolveIncludes(content, basePath, depth = 0) {
   if (depth >= MAX_INCLUDE_DEPTH) return content;
 
@@ -32,16 +36,19 @@ function resolveIncludes(content, basePath, depth = 0) {
   });
 }
 
+/**
+ * Loads and processes a context file.
+ * @param {string} filePath - Path to the file.
+ * @returns {string|null} Processed content or null.
+ */
 function loadContextFile(filePath) {
   try {
     if (!fs.existsSync(filePath)) return null;
     let content = fs.readFileSync(filePath, "utf8").trim();
     if (!content) return null;
 
-    // Resolve !include directives
     content = resolveIncludes(content, path.dirname(filePath));
 
-    // Truncate if too large
     if (content.length > MAX_CONTEXT_SIZE) {
       content = content.slice(0, MAX_CONTEXT_SIZE) + "\n\n... [TRUNCATED]";
     }
@@ -52,10 +59,13 @@ function loadContextFile(filePath) {
   }
 }
 
+/**
+ * Loads all relevant project context (global and local).
+ * @returns {Array<Object>} List of context parts with source, path, and content.
+ */
 function loadProjectContext() {
   const parts = [];
 
-  // 1. Global context (~/.meowcli/MEOW.md)
   const globalCtx = loadContextFile(GLOBAL_MEOW_MD);
   if (globalCtx) {
     parts.push({
@@ -65,7 +75,6 @@ function loadProjectContext() {
     });
   }
 
-  // 2. Local context (./MEOW.md in CWD)
   const localPath = path.resolve(process.cwd(), LOCAL_MEOW_MD);
   const localCtx = loadContextFile(localPath);
   if (localCtx) {
@@ -79,8 +88,12 @@ function loadProjectContext() {
   return parts;
 }
 
-// ─── Build System Prompt ────────────────────────────────────────────────────
-
+/**
+ * Builds a complete system prompt by appending project context.
+ * @param {string} basePrompt - Initial system prompt.
+ * @param {Array<Object>|null} [contextParts=null] - Pre-loaded context parts.
+ * @returns {string} Final system prompt.
+ */
 function buildSystemPrompt(basePrompt, contextParts = null) {
   const parts = contextParts ?? loadProjectContext();
   if (parts.length === 0) return basePrompt;
@@ -93,8 +106,9 @@ function buildSystemPrompt(basePrompt, contextParts = null) {
   return basePrompt + contextBlock;
 }
 
-// ─── Display Context ────────────────────────────────────────────────────────
-
+/**
+ * Prints the current project context to the terminal.
+ */
 function printContext() {
   const parts = loadProjectContext();
 
@@ -113,7 +127,6 @@ function printContext() {
       console.log(`  ${TEXT}${part.source}${C.reset} ${MUTED}${part.path}${C.reset}`);
       console.log(`  ${TEXT_DIM}${lines} lines, ~${tokens} tokens${C.reset}`);
 
-      // Show first 5 lines preview
       const preview = part.content.split("\n").slice(0, 5);
       for (const line of preview) {
         console.log(`  ${MUTED}┃${C.reset} ${TEXT_DIM}${line.slice(0, COLS - 8)}${C.reset}`);
@@ -130,14 +143,16 @@ function printContext() {
   console.log("");
 }
 
-// ─── Edit Context ───────────────────────────────────────────────────────────
-
+/**
+ * Prepares the local context file for editing.
+ * @param {string|null} [editor=null] - Command to open the editor.
+ * @returns {Object} Object containing the editor command and file path.
+ */
 function editContext(editor = null) {
   const localPath = path.resolve(process.cwd(), LOCAL_MEOW_MD);
   const editorCmd = editor || process.env.EDITOR || process.env.VISUAL || "nano";
 
   if (!fs.existsSync(localPath)) {
-    // Create template
     const template = `# Project Context for Meow CLI
 
 ## Project Description
@@ -161,7 +176,6 @@ function editContext(editor = null) {
 
   return { editor: editorCmd, path: localPath };
 }
-
 
 export {
   loadProjectContext,

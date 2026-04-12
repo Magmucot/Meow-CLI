@@ -1,8 +1,13 @@
-
 import fs from "fs";
 import path from "path";
 import { log, listDir, readFile, runShell, loadUndoState, saveUndoState } from "../../core.js";
 
+/**
+ * Handles /undo, /list, /read, and /shell commands.
+ * @param {Object} ctx - CLI context.
+ * @param {string} input - User input.
+ * @returns {Promise<Object|null>}
+ */
 const handleTools = async (ctx, input) => {
   if (input.startsWith("/undo")) {
     const parts = input.split(" ");

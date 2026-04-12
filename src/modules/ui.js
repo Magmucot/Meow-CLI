@@ -1,6 +1,6 @@
 import path from "path";
 import { marked } from "marked";
-import TerminalRenderer from "marked-terminal";
+import { markedTerminal } from "marked-terminal";
 import chalk from "chalk";
 import boxen from "boxen";
 import gradient from "gradient-string";

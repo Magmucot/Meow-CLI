@@ -188,10 +188,10 @@ class StreamRenderer {
 // ─── Non-streaming Response Renderer ────────────────────────────────────────
 
 function renderNonStreaming(msg, data) {
-  console.log(`  ${AI_CLR.bold("Assistant")}`);
+  console.log(`\n  ${AI_GRADIENT.bold("Assistant")}`);
   const output = renderMD(msg.content || "").trim();
-  console.log(output.split("\n").map(l => "  " + l).join("\n"));
-  console.log(`  ${MUTED}${"─".repeat(Math.min(COLS - 4, 50))}${C.reset}`);
+  console.log(output.split("\n").map(l => `  ${MUTED("┃")}  ` + l).join("\n"));
+  console.log(`  ${MUTED("└")}\n`);
 }
 
 // ─── Main Interactive Loop ──────────────────────────────────────────────────

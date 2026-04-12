@@ -3,22 +3,51 @@ import path from "path";
 import { formatBytes } from "./utils.js";
 import { log } from "./ui.js";
 
-// ─── Image Helpers ──────────────────────────────────────────────────────────
-
+/**
+ * Supported image file extensions.
+ * @type {Set<string>}
+ */
 const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg"]);
+
+/**
+ * MIME types mapping for image extensions.
+ * @type {Object<string, string>}
+ */
 const MIME_TYPES = {
   ".png":"image/png", ".jpg":"image/jpeg", ".jpeg":"image/jpeg",
   ".gif":"image/gif", ".webp":"image/webp", ".bmp":"image/bmp", ".svg":"image/svg+xml",
 };
 
+/**
+ * Checks if a path points to an image.
+ * @param {string} p - File path.
+ * @returns {boolean}
+ */
 function isImagePath(p) { return IMAGE_EXTENSIONS.has(path.extname(p).toLowerCase()); }
+
+/**
+ * Checks if a string is a URL.
+ * @param {string} s - String to check.
+ * @returns {boolean}
+ */
 function isUrl(s) { return /^https?:\/\//i.test(s); }
+
+/**
+ * Checks if a string is a valid image URL or data URI.
+ * @param {string} s - String to check.
+ * @returns {boolean}
+ */
 function isValidImageUrl(s) {
   if (typeof s !== "string") return false;
   if (s.startsWith("data:")) return true;
   return isUrl(s);
 }
 
+/**
+ * Encodes a local image file to a base64 data URI.
+ * @param {string} filePath - Path to the image file.
+ * @returns {{url: string, size: string}} Encoded URI and formatted file size.
+ */
 function encodeImageFile(filePath) {
   const resolved = path.resolve(filePath);
   if (!fs.existsSync(resolved)) throw new Error(`File not found: ${resolved}`);
@@ -31,6 +60,12 @@ function encodeImageFile(filePath) {
   return { url: `data:${mime};base64,${buf.toString("base64")}`, size: formatBytes(stat.size) };
 }
 
+/**
+ * Builds the vision content array for the OpenAI API.
+ * @param {string} text - Text prompt.
+ * @param {string[]} images - Array of image paths or URLs.
+ * @returns {Array<Object>}
+ */
 function buildVisionContent(text, images) {
   const content = [];
   for (const img of images) {
@@ -47,12 +82,22 @@ function buildVisionContent(text, images) {
   return content;
 }
 
+/**
+ * Parses inline image tags {img:path} from a string.
+ * @param {string} input - User input string.
+ * @returns {{text: string, images: string[]}}
+ */
 function parseInlineImages(input) {
   const images = [];
   const text = input.replace(/\{img:([^}]+)\}/g, (_, p) => { images.push(p.trim()); return ""; });
   return { text: text.trim(), images };
 }
 
+/**
+ * Simplifies vision content for history storage (replaces base64 with a placeholder).
+ * @param {string|Array} content - Message content.
+ * @returns {string|Array}
+ */
 function simplifyContentForHistory(content) {
   if (typeof content === "string") return content;
   if (!Array.isArray(content)) return content;
@@ -63,6 +108,11 @@ function simplifyContentForHistory(content) {
   });
 }
 
+/**
+ * Sanitizes vision content by removing invalid images.
+ * @param {Array} content - Content array.
+ * @returns {Array}
+ */
 function sanitizeVisionContent(content) {
   if (!Array.isArray(content)) return content;
   let dropped = false;
@@ -79,6 +129,11 @@ function sanitizeVisionContent(content) {
   return cleaned;
 }
 
+/**
+ * Sanitizes messages before sending to API (handles vision and tool call consistency).
+ * @param {Array<Object>} messages - Message history.
+ * @returns {Array<Object>}
+ */
 function sanitizeMessagesForApi(messages) {
   const cleaned = [];
   let toolBuffer = null;
@@ -120,7 +175,11 @@ function sanitizeMessagesForApi(messages) {
   return cleaned;
 }
 
-
+/**
+ * Ensures all tool calls in messages have corresponding tool responses.
+ * @param {Array<Object>} messages - Message history.
+ * @returns {Array<Object>}
+ */
 function sanitizeToolCallsForApi(messages) {
   const toolCallIds = new Set();
   const toolResponseIds = new Set();
@@ -148,5 +207,9 @@ function sanitizeToolCallsForApi(messages) {
   });
 }
 
-
-export { IMAGE_EXTENSIONS, MIME_TYPES, isImagePath, isUrl, isValidImageUrl, encodeImageFile, buildVisionContent, parseInlineImages, simplifyContentForHistory, sanitizeVisionContent, sanitizeMessagesForApi, sanitizeToolCallsForApi };
+export {
+  IMAGE_EXTENSIONS, MIME_TYPES, isImagePath, isUrl, isValidImageUrl,
+  encodeImageFile, buildVisionContent, parseInlineImages,
+  simplifyContentForHistory, sanitizeVisionContent,
+  sanitizeMessagesForApi, sanitizeToolCallsForApi
+};

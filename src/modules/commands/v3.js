@@ -1,3 +1,7 @@
+/**
+ * Command handlers for v3 features including Lead Dev mode, delegation, memory, and smart UX.
+ */
+
 import {
   log, C, ACCENT, ACCENT2, MUTED, TEXT, TEXT_DIM, SUCCESS, ERROR, WARNING,
   saveConfig,

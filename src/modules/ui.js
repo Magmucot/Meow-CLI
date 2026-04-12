@@ -6,6 +6,11 @@ import boxen from "boxen";
 import gradient from "gradient-string";
 
 
+const getOpen = (fn) => {
+  const stylerSymbol = Object.getOwnPropertySymbols(fn).find(s => s.description === 'STYLER');
+  return fn[stylerSymbol]?.open || "";
+};
+
 const color = (hex) => {
   const fn = chalk.hex(hex);
   const wrapper = (text) => fn(text);
@@ -13,7 +18,7 @@ const color = (hex) => {
     get(target, prop) {
       if (prop === 'hexCode') return hex;
       if (prop === 'toString' || prop === Symbol.toPrimitive) {
-        return () => fn.open || "";
+        return () => getOpen(fn);
       }
       const val = fn[prop];
       if (typeof val === 'function') {
@@ -25,26 +30,26 @@ const color = (hex) => {
       return val;
     }
   });
-  wrapper[Symbol.toPrimitive] = () => fn.open || "";
-  wrapper.toString = () => fn.open || "";
+  wrapper[Symbol.toPrimitive] = () => getOpen(fn);
+  wrapper.toString = () => getOpen(fn);
   return proxy;
 };
 
 const C = {
-  reset:     { [Symbol.toPrimitive]: () => chalk.reset.open || "", ...chalk.reset },
-  bold:      { [Symbol.toPrimitive]: () => chalk.bold.open || "", ...chalk.bold },
-  dim:       { [Symbol.toPrimitive]: () => chalk.dim.open || "", ...chalk.dim },
-  italic:    { [Symbol.toPrimitive]: () => chalk.italic.open || "", ...chalk.italic },
-  underline: { [Symbol.toPrimitive]: () => chalk.underline.open || "", ...chalk.underline },
-  inverse:   { [Symbol.toPrimitive]: () => chalk.inverse.open || "", ...chalk.inverse },
-  gray:      { [Symbol.toPrimitive]: () => chalk.gray.open || "", ...chalk.gray },
-  red:       { [Symbol.toPrimitive]: () => chalk.red.open || "", ...chalk.red },
-  green:     { [Symbol.toPrimitive]: () => chalk.green.open || "", ...chalk.green },
-  yellow:    { [Symbol.toPrimitive]: () => chalk.yellow.open || "", ...chalk.yellow },
-  blue:      { [Symbol.toPrimitive]: () => chalk.blue.open || "", ...chalk.blue },
-  magenta:   { [Symbol.toPrimitive]: () => chalk.magenta.open || "", ...chalk.magenta },
-  cyan:      { [Symbol.toPrimitive]: () => chalk.cyan.open || "", ...chalk.cyan },
-  white:     { [Symbol.toPrimitive]: () => chalk.white.open || "", ...chalk.white },
+  reset:     { [Symbol.toPrimitive]: () => getOpen(chalk.reset), ...chalk.reset },
+  bold:      { [Symbol.toPrimitive]: () => getOpen(chalk.bold), ...chalk.bold },
+  dim:       { [Symbol.toPrimitive]: () => getOpen(chalk.dim), ...chalk.dim },
+  italic:    { [Symbol.toPrimitive]: () => getOpen(chalk.italic), ...chalk.italic },
+  underline: { [Symbol.toPrimitive]: () => getOpen(chalk.underline), ...chalk.underline },
+  inverse:   { [Symbol.toPrimitive]: () => getOpen(chalk.inverse), ...chalk.inverse },
+  gray:      { [Symbol.toPrimitive]: () => getOpen(chalk.gray), ...chalk.gray },
+  red:       { [Symbol.toPrimitive]: () => getOpen(chalk.red), ...chalk.red },
+  green:     { [Symbol.toPrimitive]: () => getOpen(chalk.green), ...chalk.green },
+  yellow:    { [Symbol.toPrimitive]: () => getOpen(chalk.yellow), ...chalk.yellow },
+  blue:      { [Symbol.toPrimitive]: () => getOpen(chalk.blue), ...chalk.blue },
+  magenta:   { [Symbol.toPrimitive]: () => getOpen(chalk.magenta), ...chalk.magenta },
+  cyan:      { [Symbol.toPrimitive]: () => getOpen(chalk.cyan), ...chalk.cyan },
+  white:     { [Symbol.toPrimitive]: () => getOpen(chalk.white), ...chalk.white },
 };
 
 const ACCENT    = color("#CC7832");

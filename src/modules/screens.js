@@ -54,7 +54,7 @@ function banner(cfg, currentChat, historyLen, pinsCount = 0) {
 // ─── Help Screen (Claude Code style — grouped, clean) ──────────────────────
 
 function printHelp(cfg) {
-  console.log("");
+  log.br();
 
   const sections = [
     {
@@ -179,13 +179,12 @@ function printHelp(cfg) {
   ];
 
   for (const section of sections) {
-    console.log(`  ${ACCENT}${C.bold}${section.title}${C.reset}`);
-    console.log("");
-    for (const [cmd, desc] of section.items) {
-      const padded = cmd.padEnd(24);
-      console.log(`    ${TEXT}${C.bold}${padded}${C.reset} ${MUTED}${desc}${C.reset}`);
-    }
-    console.log("");
+    console.log(`  ${ACCENT}${C.bold}${section.title}${C.reset}\n`);
+    table(section.items.map(([cmd, desc]) => [
+      `${TEXT}${C.bold}${cmd}${C.reset}`,
+      `${MUTED}${desc}${C.reset}`
+    ]), { indent: 4, colWidths: [24] });
+    log.br();
   }
 
   // Aliases footer
@@ -194,8 +193,7 @@ function printHelp(cfg) {
     const aliasStr = aliasEntries
       .map(([a, b]) => `${TEXT_DIM}${a}${MUTED} → ${TEXT_DIM}${b}`)
       .join("  ");
-    console.log(`  ${MUTED}aliases:${C.reset} ${aliasStr}${C.reset}`);
-    console.log("");
+    console.log(`  ${MUTED}aliases:${C.reset} ${aliasStr}${C.reset}\n`);
   }
 }
 

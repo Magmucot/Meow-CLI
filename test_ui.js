@@ -10,16 +10,25 @@ const color = (hex) => {
       if (prop === 'hexCode') return hex;
       if (prop === 'toString') return () => fn.open || "";
       if (prop === Symbol.toPrimitive) return (hint) => (hint === 'number') ? null : (fn.open || "");
-      const val = target[prop] || fn[prop];
-      return typeof val === 'function' ? val.bind(fn) : val;
+      const val = fn[prop];
+      if (typeof val === 'function') {
+        const bound = val.bind(fn);
+        return (...args) => {
+            const result = bound(...args);
+            if (typeof result === 'function' && result.open !== undefined) {
+                // It's a chained chalk function
+                // We should probably wrap it too, but let's see
+            }
+            return result;
+        };
+      }
+      return val;
     }
   });
 };
 
 const TOOL_CLR = color("#6CB4DC");
-console.log('Template literal:', `${TOOL_CLR}test`);
-console.log('TOOL_CLR + "test":', TOOL_CLR + "test");
-console.log('String(TOOL_CLR):', String(TOOL_CLR));
+console.log('TOOL_CLR.bold("hello"):', JSON.stringify(TOOL_CLR.bold("hello")));
 console.log('TOOL_CLR.bold type:', typeof TOOL_CLR.bold);
 try {
     console.log('TOOL_CLR.bold("hello"):', TOOL_CLR.bold("hello"));

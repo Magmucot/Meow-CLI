@@ -294,7 +294,7 @@ function printConfig(cfg) {
 function printAutopilotConfig(cfg) {
   const ap = cfg.autopilot || {};
 
-  console.log("");
+  log.br();
   console.log(`  ${AUTO_CLR}${C.bold}🤖 Autopilot Configuration${C.reset}`);
   console.log(`  ${MUTED}${"─".repeat(45)}${C.reset}`);
 
@@ -307,10 +307,7 @@ function printAutopilotConfig(cfg) {
     ["Log dir",        `${MUTED}~/.meowcli/data/logs/${C.reset}`],
   ];
 
-  for (const [label, value] of rows) {
-    console.log(`  ${TEXT_DIM}${label.padEnd(18)}${C.reset} ${value}`);
-  }
-
+  table(rows.map(([label, value]) => [`${TEXT_DIM}${label}${C.reset}`, value]), { colWidths: [18] });
   console.log(`  ${MUTED}${"─".repeat(45)}${C.reset}\n`);
 }
 

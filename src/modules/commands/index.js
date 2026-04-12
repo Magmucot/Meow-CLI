@@ -21,6 +21,10 @@ import {
   handlePreview, handleCI, handleAudit, handleIncognito, handleRouting,
 } from "./v3.js";
 
+/**
+ * List of all registered command handlers.
+ * @type {Array<Function>}
+ */
 const commandHandlers = [
   handleGeneral,
   handleAssistant,
@@ -38,7 +42,6 @@ const commandHandlers = [
   handleSessions,
   handleCost,
   handleCompact,
-  // v3 commands
   handleLead,
   handleDelegate,
   handleMemory,
@@ -51,6 +54,12 @@ const commandHandlers = [
   handleMisc,
 ];
 
+/**
+ * Runs the input through all registered command handlers.
+ * @param {Object} ctx - CLI context.
+ * @param {string} input - User input.
+ * @returns {Promise<Object>} Handler result (handled, exit, continue, input).
+ */
 const runCommandHandlers = async (ctx, input) => {
   let currentInput = input;
   for (const handler of commandHandlers) {

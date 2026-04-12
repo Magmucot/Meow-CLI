@@ -22,6 +22,12 @@ import {
   disablePlugin,
 } from "../../core.js";
 
+/**
+ * Handles /plugin commands for managing external extensions.
+ * @param {Object} ctx - CLI context.
+ * @param {string} input - User input.
+ * @returns {Promise<Object|null>}
+ */
 const handlePlugins = async (ctx, input) => {
   if (!input.startsWith("/plugin")) return null;
 

@@ -8,6 +8,7 @@ import TerminalRenderer from "marked-terminal";
 import chalk from "chalk";
 import boxen from "boxen";
 import { spinner as clackSpinner } from "@clack/prompts";
+import gradient from "gradient-string";
 
 // ─── Theme & Styling (using Chalk) ──────────────────────────────────────────
 
@@ -71,6 +72,36 @@ function box(content, { title = "", color = "#CC7832", width = COLS - 2, padding
     padding,
     width,
     float: "left",
+  });
+}
+
+function table(rows, { indent = 2, colSpacing = 2, colWidths = [] } = {}) {
+  const padding = " ".repeat(indent);
+  const spacing = " ".repeat(colSpacing);
+  
+  const widths = [...colWidths];
+  rows.forEach(row => {
+    row.forEach((cell, i) => {
+      const len = stripAnsi(String(cell)).length;
+      if (!widths[i] || len > widths[i]) widths[i] = len;
+    });
+  });
+
+  rows.forEach(row => {
+    const line = row.map((cell, i) => {
+      const str = String(cell);
+      const len = stripAnsi(str).length;
+      const pad = " ".repeat(Math.max(0, (widths[i] || 0) - len));
+      return str + pad;
+    }).join(spacing);
+    console.log(padding + line);
+  });
+}
+
+function list(items, { indent = 2, bullet = "•", bulletColor = MUTED } = {}) {
+  const padding = " ".repeat(indent);
+  items.forEach(item => {
+    console.log(`${padding}${bulletColor(bullet)} ${item}`);
   });
 }
 
@@ -174,7 +205,7 @@ export {
   C, ACCENT, ACCENT2, ACCENT3, SUCCESS, WARNING, ERROR, INFO,
   MUTED, TEXT, TEXT_DIM, TOOL_CLR, USER_CLR, AI_CLR,
   IMG_CLR, AUTO_CLR, COLS, SHELL_TIMEOUT_MS,
-  box, stripAnsi,
+  box, table, list, stripAnsi,
   progressBar, colorDiff,
-  Spinner, log, renderMD
+  Spinner, log, renderMD, gradient
 };

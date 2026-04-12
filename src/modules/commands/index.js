@@ -1,4 +1,3 @@
-
 import { handleGeneral } from "./general.js";
 import { handleAssistant } from "./assistant.js";
 import { handlePins } from "./pins.js";

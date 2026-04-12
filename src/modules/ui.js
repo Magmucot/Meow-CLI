@@ -1,176 +1,81 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// ui.js — Meow CLI UI (Claude Code–inspired redesign)
+// ui.js — Meow CLI UI (Modern Library-based)
 // ═══════════════════════════════════════════════════════════════════════════
 
 import path from "path";
 import { marked } from "marked";
 import TerminalRenderer from "marked-terminal";
+import chalk from "chalk";
+import boxen from "boxen";
+import { spinner as clackSpinner } from "@clack/prompts";
 
-// ─── Theme & Styling ────────────────────────────────────────────────────────
+// ─── Theme & Styling (using Chalk) ──────────────────────────────────────────
 
 const C = {
-  reset:     "\x1b[0m",
-  bold:      "\x1b[1m",
-  dim:       "\x1b[2m",
-  italic:    "\x1b[3m",
-  underline: "\x1b[4m",
-  blink:     "\x1b[5m",
-  inverse:   "\x1b[7m",
-  hidden:    "\x1b[8m",
-  strike:    "\x1b[9m",
-
-  black:   "\x1b[30m",
-  red:     "\x1b[31m",
-  green:   "\x1b[32m",
-  yellow:  "\x1b[33m",
-  blue:    "\x1b[34m",
-  magenta: "\x1b[35m",
-  cyan:    "\x1b[36m",
-  white:   "\x1b[37m",
-  gray:    "\x1b[90m",
-
-  bgBlack:   "\x1b[40m",
-  bgRed:     "\x1b[41m",
-  bgGreen:   "\x1b[42m",
-  bgYellow:  "\x1b[43m",
-  bgBlue:    "\x1b[44m",
-  bgMagenta: "\x1b[45m",
-  bgCyan:    "\x1b[46m",
-  bgWhite:   "\x1b[47m",
-
-  brightBlack:   "\x1b[90m",
-  brightRed:     "\x1b[91m",
-  brightGreen:   "\x1b[92m",
-  brightYellow:  "\x1b[93m",
-  brightBlue:    "\x1b[94m",
-  brightMagenta: "\x1b[95m",
-  brightCyan:    "\x1b[96m",
-  brightWhite:   "\x1b[97m",
+  reset:     chalk.reset,
+  bold:      chalk.bold,
+  dim:       chalk.dim,
+  italic:    chalk.italic,
+  underline: chalk.underline,
+  inverse:   chalk.inverse,
+  gray:      chalk.gray,
+  red:       chalk.red,
+  green:     chalk.green,
+  yellow:    chalk.yellow,
+  blue:      chalk.blue,
+  magenta:   chalk.magenta,
+  cyan:      chalk.cyan,
+  white:     chalk.white,
 };
 
-const rgb = (r, g, b) => `\x1b[38;2;${r};${g};${b}m`;
-const bgRgb = (r, g, b) => `\x1b[48;2;${r};${g};${b}m`;
-
-// ─── Claude Code–inspired palette ───────────────────────────────────────────
-// Primary: warm terracotta/clay orange (Claude's signature)
-// Secondary: soft lavender for AI identity
-// Accents: muted earth tones
-
-const ACCENT    = rgb(204, 120, 50);   // terracotta orange (primary brand)
-const ACCENT2   = rgb(169, 142, 210);  // soft lavender
-const ACCENT3   = rgb(204, 120, 50);   // same as primary for prompt caret
-const SUCCESS   = rgb(106, 190, 130);  // sage green
-const WARNING   = rgb(222, 184, 88);   // warm amber
-const ERROR     = rgb(210, 96, 96);    // muted coral red
-const INFO      = rgb(108, 180, 220);  // sky blue
-const MUTED     = rgb(100, 100, 100);  // neutral gray
-const SURFACE   = rgb(30, 30, 30);     // dark surface
-const TEXT      = rgb(212, 212, 212);   // light text
-const TEXT_DIM  = rgb(150, 150, 150);   // dimmed text
-const TOOL_CLR  = rgb(108, 180, 220);  // tools = blue (like Claude Code)
-const USER_CLR  = rgb(212, 212, 212);  // user = white
-const AI_CLR    = rgb(204, 120, 50);   // AI = terracotta
-const IMG_CLR   = rgb(210, 140, 180);  // images = dusty rose
-const AUTO_CLR  = rgb(222, 184, 88);   // autopilot = amber
+// Claude Code–inspired palette using hex colors for precision
+const ACCENT    = chalk.hex("#CC7832"); // terracotta orange
+const ACCENT2   = chalk.hex("#A98EDA"); // soft lavender
+const ACCENT3   = chalk.hex("#CC7832");
+const SUCCESS   = chalk.hex("#6ABE82"); // sage green
+const WARNING   = chalk.hex("#DEB858"); // warm amber
+const ERROR     = chalk.hex("#D26060"); // muted coral red
+const INFO      = chalk.hex("#6CB4DC"); // sky blue
+const MUTED     = chalk.hex("#646464"); // neutral gray
+const TEXT      = chalk.hex("#D4D4D4"); // light text
+const TEXT_DIM  = chalk.hex("#969696"); // dimmed text
+const TOOL_CLR  = chalk.hex("#6CB4DC"); // tools = blue
+const USER_CLR  = chalk.hex("#D4D4D4"); // user = white
+const AI_CLR    = chalk.hex("#CC7832"); // AI = terracotta
+const IMG_CLR   = chalk.hex("#D28CB4"); // images = dusty rose
+const AUTO_CLR  = chalk.hex("#DEB858"); // autopilot = amber
 
 const SHELL_TIMEOUT_MS = parseInt(process.env.MEOWCLI_SHELL_TIMEOUT_MS || "30000", 10);
-
 const COLS = Math.min(process.stdout.columns || 80, 100);
 
 marked.setOptions({
   renderer: new TerminalRenderer({
-    code: (code) => `\n${MUTED}  ┃${C.reset} ${code}\n`,
-    blockquote: (quote) => `  ${MUTED}┃${C.reset} ${TEXT_DIM}${quote}${C.reset}\n`,
+    code: (code) => `\n${MUTED("  ┃")} ${code}\n`,
+    blockquote: (quote) => `  ${MUTED("┃")} ${TEXT_DIM(quote)}\n`,
     heading: (text, level) => {
-      if (level === 1) return `\n${ACCENT}${C.bold}# ${text}${C.reset}\n`;
-      if (level === 2) return `\n${ACCENT}${C.bold}## ${text}${C.reset}\n`;
-      return `\n${TEXT}${C.bold}${text}${C.reset}\n`;
+      if (level === 1) return `\n${ACCENT.bold("# " + text)}\n`;
+      if (level === 2) return `\n${ACCENT.bold("## " + text)}\n`;
+      return `\n${TEXT.bold(text)}\n`;
     },
-    hr: () => `\n${MUTED}${"─".repeat(Math.min(COLS - 4, 60))}${C.reset}\n`,
+    hr: () => `\n${MUTED("─".repeat(Math.min(COLS - 4, 60)))}\n`,
   })
 });
 
 // ─── Box Drawing & Layout Helpers ───────────────────────────────────────────
 
-function box(content, { title = "", color = ACCENT, width = COLS - 2, padding = 1, style = "rounded" } = {}) {
-  const w = Math.max(width, 20);
-  const inner = w - 2;
-  const pad = " ".repeat(padding);
-
-  // Rounded or sharp corners
-  const chars = style === "sharp"
-    ? { tl: "┌", tr: "┐", bl: "└", br: "┘", h: "─", v: "│" }
-    : { tl: "╭", tr: "╮", bl: "╰", br: "╯", h: "─", v: "│" };
-
-  const top = title
-    ? `${color}${chars.tl}${chars.h} ${C.bold}${title}${C.reset}${color} ${chars.h.repeat(Math.max(0, inner - stripAnsi(title).length - 3))}${chars.tr}${C.reset}`
-    : `${color}${chars.tl}${chars.h.repeat(inner)}${chars.tr}${C.reset}`;
-  const bot = `${color}${chars.bl}${chars.h.repeat(inner)}${chars.br}${C.reset}`;
-
-  const lines = content.split("\n").map(line => {
-    const stripped = stripAnsi(line);
-    const space = Math.max(0, inner - padding * 2 - stripped.length);
-    return `${color}${chars.v}${C.reset}${pad}${line}${" ".repeat(space)}${pad}${color}${chars.v}${C.reset}`;
-  });
-
-  return [top, ...lines, bot].join("\n");
-}
-
-function table(rows, { indent = 2, colSpacing = 2, colWidths = [] } = {}) {
-  const padding = " ".repeat(indent);
-  const spacing = " ".repeat(colSpacing);
-  
-  // Calculate max widths if not provided
-  const widths = [...colWidths];
-  rows.forEach(row => {
-    row.forEach((cell, i) => {
-      const len = stripAnsi(String(cell)).length;
-      if (!widths[i] || len > widths[i]) widths[i] = len;
-    });
-  });
-
-  rows.forEach(row => {
-    const line = row.map((cell, i) => {
-      const str = String(cell);
-      const len = stripAnsi(str).length;
-      const pad = " ".repeat(Math.max(0, (widths[i] || 0) - len));
-      return str + pad;
-    }).join(spacing);
-    console.log(padding + line);
-  });
-}
-
-function list(items, { indent = 2, bullet = "•", bulletColor = MUTED } = {}) {
-  const padding = " ".repeat(indent);
-  items.forEach(item => {
-    console.log(`${padding}${bulletColor}${bullet}${C.reset} ${item}`);
+function box(content, { title = "", color = "#CC7832", width = COLS - 2, padding = 1, style = "rounded" } = {}) {
+  return boxen(content, {
+    title,
+    borderColor: color,
+    borderStyle: style,
+    padding,
+    width,
+    float: "left",
   });
 }
 
 function stripAnsi(str) {
   return str.replace(/\x1b\[[0-9;]*m/g, "");
-}
-
-function centerText(text, width = COLS) {
-  const len = stripAnsi(text).length;
-  const pad = Math.max(0, Math.floor((width - len) / 2));
-  return " ".repeat(pad) + text;
-}
-
-function divider(char = "─", color = MUTED, width = COLS - 2) {
-  return `${color}${char.repeat(width)}${C.reset}`;
-}
-
-function badge(text, bg = ACCENT, fg = C.white) {
-  return `${bgRgb(140, 80, 30)}${fg}${C.bold} ${text} ${C.reset}`;
-}
-
-function tag(text, color = ACCENT) {
-  return `${color}[${text}]${C.reset}`;
-}
-
-function pill(text, color = MUTED) {
-  return `${color}(${text})${C.reset}`;
 }
 
 // ─── Progress & Diff Helpers ────────────────────────────────────────────────
@@ -179,119 +84,97 @@ function progressBar(current, total, { width = 20, label = "", color = ACCENT } 
   const pct = Math.min(current / Math.max(total, 1), 1);
   const filled = Math.round(pct * width);
   const empty = width - filled;
-  const bar = `${color}${"━".repeat(filled)}${MUTED}${"━".repeat(empty)}${C.reset}`;
+  const bar = `${color("━".repeat(filled))}${MUTED("━".repeat(empty))}`;
   const pctStr = `${Math.round(pct * 100)}%`;
-  return `${bar} ${TEXT_DIM}${pctStr}${label ? ` ${label}` : ""}${C.reset}`;
+  return `${bar} ${TEXT_DIM(pctStr)}${label ? ` ${label}` : ""}`;
 }
 
 function colorDiff(diffText) {
   if (!diffText) return "";
   return diffText.split("\n").map(line => {
-    if (line.startsWith("+") && !line.startsWith("+++")) return `${SUCCESS}${line}${C.reset}`;
-    if (line.startsWith("-") && !line.startsWith("---")) return `${ERROR}${line}${C.reset}`;
-    if (line.startsWith("@@")) return `${INFO}${line}${C.reset}`;
-    if (line.startsWith("diff ") || line.startsWith("index ")) return `${ACCENT}${C.bold}${line}${C.reset}`;
-    return `${TEXT_DIM}${line}${C.reset}`;
+    if (line.startsWith("+") && !line.startsWith("+++")) return SUCCESS(line);
+    if (line.startsWith("-") && !line.startsWith("---")) return ERROR(line);
+    if (line.startsWith("@@")) return INFO(line);
+    if (line.startsWith("diff ") || line.startsWith("index ")) return ACCENT.bold(line);
+    return TEXT_DIM(line);
   }).join("\n");
 }
 
-// ─── Spinner (Claude Code style — clean, minimal) ──────────────────────────
+// ─── Spinner (using Clack) ──────────────────────────────────────────────────
 
 class Spinner {
   constructor(text = "Thinking") {
-    // Claude Code uses a simple dots animation
-    this.frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+    this.s = clackSpinner();
     this.text = text;
-    this.i = 0;
-    this.timer = null;
-    this.startTime = 0;
   }
 
   start() {
-    this.startTime = Date.now();
-    this.i = 0;
-    process.stdout.write("\x1b[?25l"); // hide cursor
-    this.timer = setInterval(() => {
-      const elapsed = ((Date.now() - this.startTime) / 1000).toFixed(1);
-      const frame = this.frames[this.i % this.frames.length];
-      // Claude Code style: muted spinner, dim elapsed time
-      process.stdout.write(
-        `\r  ${ACCENT}${frame}${C.reset} ${TEXT_DIM}${this.text}${C.reset} ${MUTED}${elapsed}s${C.reset}  `
-      );
-      this.i++;
-    }, 80);
+    this.s.start(this.text);
   }
 
-  update(text) { this.text = text; }
+  update(text) {
+    this.text = text;
+    this.s.message(text);
+  }
 
-  stop() {
-    if (this.timer) { clearInterval(this.timer); this.timer = null; }
-    process.stdout.write("\r" + " ".repeat(COLS - 1) + "\r");
-    process.stdout.write("\x1b[?25h"); // show cursor
+  stop(msg = "") {
+    this.s.stop(msg);
   }
 }
 
-// ─── Logger (Claude Code style — left-aligned, clean icons) ─────────────────
+// ─── Logger ─────────────────────────────────────────────────────────────────
 
 const log = {
-  info: (s) => console.log(`  ${INFO}ℹ${C.reset} ${TEXT}${s}${C.reset}`),
-  ok:   (s) => console.log(`  ${SUCCESS}✔${C.reset} ${TEXT}${s}${C.reset}`),
-  warn: (s) => console.log(`  ${WARNING}⚠${C.reset} ${WARNING}${s}${C.reset}`),
-  err:  (s) => console.log(`  ${ERROR}✘${C.reset} ${ERROR}${s}${C.reset}`),
-  dim:  (s) => console.log(`  ${MUTED}${s}${C.reset}`),
+  info: (s) => console.log(`  ${INFO("ℹ")} ${TEXT(s)}`),
+  ok:   (s) => console.log(`  ${SUCCESS("✔")} ${TEXT(s)}`),
+  warn: (s) => console.log(`  ${WARNING("⚠")} ${WARNING(s)}`),
+  err:  (s) => console.log(`  ${ERROR("✘")} ${ERROR(s)}`),
+  dim:  (s) => console.log(`  ${MUTED(s)}`),
 
-  // Tool calls — Claude Code shows them as indented blocks with a colored bar
   tool: (name, args) => {
     const argsStr = typeof args === "string" ? args : JSON.stringify(args);
     const short = argsStr.length > 70 ? argsStr.slice(0, 67) + "…" : argsStr;
-    console.log(`  ${TOOL_CLR}┃${C.reset} ${TOOL_CLR}${C.bold}${name}${C.reset} ${MUTED}${short}${C.reset}`);
+    console.log(`  ${TOOL_CLR("┃")} ${TOOL_CLR.bold(name)} ${MUTED(short)}`);
   },
 
-  // Tool result — shows result with a subtle bar
   toolResult: (name, result) => {
     const lines = (result || "").split("\n").slice(0, 8);
     for (const line of lines) {
-      console.log(`  ${MUTED}┃${C.reset} ${TEXT_DIM}${line}${C.reset}`);
+      console.log(`  ${MUTED("┃")} ${TEXT_DIM(line)}`);
     }
     if ((result || "").split("\n").length > 8) {
-      console.log(`  ${MUTED}┃${C.reset} ${MUTED}… (truncated)${C.reset}`);
+      console.log(`  ${MUTED("┃")} ${MUTED("… (truncated)")}`);
     }
   },
 
   img: (filePath, size) => {
-    console.log(`  ${IMG_CLR}┃${C.reset} ${IMG_CLR}📎 ${path.basename(filePath)}${C.reset} ${MUTED}${size}${C.reset}`);
+    console.log(`  ${IMG_CLR("┃")} ${IMG_CLR("📎 " + path.basename(filePath))} ${MUTED(size)}`);
   },
 
-  auto: (s) => console.log(`  ${AUTO_CLR}┃${C.reset} ${AUTO_CLR}${C.bold}autopilot${C.reset} ${TEXT_DIM}${s}${C.reset}`),
+  auto: (s) => console.log(`  ${AUTO_CLR("┃")} ${AUTO_CLR.bold("autopilot")} ${TEXT_DIM(s)}`),
 
   step: (n, total, text) => {
     console.log(`  ${progressBar(n, total, { color: ACCENT, label: text })}`);
   },
 
-  // Section header — used for grouping output
   section: (title) => {
-    console.log(`\n  ${ACCENT}${C.bold}${title}${C.reset}`);
-    console.log(`  ${MUTED}${"─".repeat(Math.min(COLS - 4, 50))}${C.reset}`);
+    console.log(`\n  ${ACCENT.bold(title)}`);
+    console.log(`  ${MUTED("─".repeat(Math.min(COLS - 4, 50)))}`);
   },
 
-  // Blank line helper
   br: () => console.log(""),
 };
-
-
-// ─── Markdown Renderer ─────────────────────────────────────────────────────
 
 function renderMD(text) {
   try { return marked.parse(text || ""); }
   catch { return text || ""; }
 }
 
-
 export {
   C, ACCENT, ACCENT2, ACCENT3, SUCCESS, WARNING, ERROR, INFO,
-  MUTED, SURFACE, TEXT, TEXT_DIM, TOOL_CLR, USER_CLR, AI_CLR,
+  MUTED, TEXT, TEXT_DIM, TOOL_CLR, USER_CLR, AI_CLR,
   IMG_CLR, AUTO_CLR, COLS, SHELL_TIMEOUT_MS,
-  rgb, bgRgb, box, table, list, stripAnsi, centerText, divider, badge, tag, pill,
+  box, stripAnsi,
   progressBar, colorDiff,
   Spinner, log, renderMD
 };

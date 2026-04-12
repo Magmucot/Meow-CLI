@@ -1,6 +1,11 @@
-
 import { log, makeChatName, saveHistoryState, printChatList } from "../../core.js";
 
+/**
+ * Handles /chat commands for managing chat sessions.
+ * @param {Object} ctx - CLI context.
+ * @param {string} input - User input.
+ * @returns {Promise<Object|null>}
+ */
 const handleChat = async (ctx, input) => {
   if (!input.startsWith("/chat ") && input.trim() !== "/chat") return null;
   const parts = input.split(/\s+/);

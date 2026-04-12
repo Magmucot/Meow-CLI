@@ -6,6 +6,7 @@
 import { exec, execSync } from "child_process";
 import path from "path";
 import os from "os";
+import fs from "fs";
 import {
   log, C, ACCENT, ACCENT2, MUTED, TEXT, TEXT_DIM, SUCCESS, ERROR, WARNING, INFO, TOOL_CLR, box, COLS,
   colorDiff, progressBar
@@ -54,11 +55,11 @@ class LivePreview {
   detect() {
     const cwd = process.cwd();
     try {
-      const pkg = JSON.parse(require("fs").readFileSync(path.join(cwd, "package.json"), "utf8"));
+      const pkg = JSON.parse(fs.readFileSync(path.join(cwd, "package.json"), "utf8"));
       const scripts = pkg.scripts || {};
       if (scripts.dev) return { cmd: "npm run dev", type: "npm" };
       if (scripts.start) return { cmd: "npm start", type: "npm" };
-    } catch {}
+    } catch { }
     return null;
   }
 

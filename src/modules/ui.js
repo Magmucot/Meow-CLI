@@ -8,9 +8,14 @@ import gradient from "gradient-string";
 const color = (hex) => {
   const fn = chalk.hex(hex);
   const wrapper = (text) => fn(text);
-  Object.defineProperty(wrapper, 'toString', { value: () => fn.open });
-  Object.assign(wrapper, fn);
-  return wrapper;
+  return new Proxy(wrapper, {
+    get(target, prop) {
+      if (prop === 'hexCode') return hex;
+      if (prop === 'toString') return () => fn.open;
+      const val = fn[prop];
+      return typeof val === 'function' ? val.bind(fn) : val;
+    }
+  });
 };
 
 const C = {

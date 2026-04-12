@@ -1,3 +1,8 @@
+/**
+ * Core module exports for Meow CLI.
+ * Centralizes access to UI, config, tools, and other modules.
+ */
+
 export * from "./modules/ui.js";
 export * from "./modules/config.js";
 export * from "./modules/images.js";

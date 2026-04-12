@@ -12,7 +12,7 @@ const LOG_DIR = path.join(DATA_DIR, "logs");
 /** @type {string} Path to undo/checkpoint state */
 const UNDO_FILE = path.join(DATA_DIR, "undo.json");
 /** @type {string} Directory for custom assistant profiles */
-const ASSIST_DIR = path.join(DATA_DIR, "assistents");
+const ASSIST_DIR = path.join(DATA_DIR, "assistants");
 /** @type {string} Path to pinned messages */
 const PIN_FILE = path.join(DATA_DIR, "pins.json");
 /** @type {string} Directory for user plugins */

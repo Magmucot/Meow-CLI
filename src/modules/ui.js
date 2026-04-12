@@ -21,7 +21,7 @@ const color = (hex) => {
         return (...args) => {
           const result = bound(...args);
           if (typeof result === 'function' && result.open !== undefined) {
-             return color(hex); // Keep the color when chaining chalk properties if possible, but chalk doesn't work like that easily
+             return color(hex); 
           }
           return result;
         };

@@ -1,10 +1,11 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// screens.js — Meow CLI Screens (Modern Library-based)
+// screens.js — Meow CLI Screens (Modern Library-based + Beautiful)
 // ═══════════════════════════════════════════════════════════════════════════
 
 import {
   ACCENT, ACCENT2, ACCENT3, SUCCESS, WARNING, ERROR, MUTED,
-  TEXT, TEXT_DIM, AUTO_CLR, INFO, C, COLS, box, table, list, log, stripAnsi, gradient
+  TEXT, TEXT_DIM, AUTO_CLR, INFO, C, COLS, box, table, list, log, stripAnsi, 
+  MEOW_GRADIENT, AI_GRADIENT
 } from "./ui.js";
 import { t } from "./config.js";
 import { listPlugins } from "./plugins.js";
@@ -14,13 +15,13 @@ import { listPlugins } from "./plugins.js";
 function banner(cfg, currentChat, historyLen, pinsCount = 0) {
   console.clear();
 
-  // Gradient Logo
+  // Gradient Logo — using the new MEOW_GRADIENT
   const logoText = `
   ╔╦╗╔═╗╔═╗╦ ╦  ╔═╗╦  ╦
   ║║║║╣ ║ ║║║║  ║  ║  ║
   ╩ ╩╚═╝╚═╝╚╩╝  ╚═╝╩═╝╩
   `;
-  console.log(gradient(["#CC7832", "#A98EDA"])(logoText));
+  console.log(MEOW_GRADIENT(logoText));
 
   console.log(`  ${MUTED(t(cfg, "banner_subtitle"))}`);
   console.log(`  ${MUTED("─".repeat(Math.min(COLS - 4, 50)))}`);
@@ -179,7 +180,7 @@ function printHelp(cfg) {
   ];
 
   for (const section of sections) {
-    console.log(`  ${ACCENT.bold(section.title)}\n`);
+    console.log(`  ${AI_GRADIENT.bold(section.title)}\n`);
     table(section.items.map(([cmd, desc]) => [
       `${TEXT.bold(cmd)}`,
       `${MUTED(desc)}`
@@ -224,7 +225,7 @@ function printStats(cfg, currentChat, historyLen, pinsCount = 0) {
     ["CWD",             `${MUTED(process.cwd())}`],
   ];
 
-  console.log(`  ${ACCENT.bold(t(cfg, "stats_title"))}`);
+  console.log(`  ${AI_GRADIENT.bold(t(cfg, "stats_title"))}`);
   console.log(`  ${MUTED("─".repeat(50))}`);
   table(rows.map(([label, value]) => [`${TEXT_DIM(label)}`, value]), { colWidths: [18] });
   console.log(`  ${MUTED("─".repeat(50))}\n`);
@@ -251,7 +252,7 @@ function printChatList(state) {
   if (names.length === 0) { log.dim("No chats yet."); return; }
 
   log.br();
-  console.log(`  ${ACCENT.bold("Chats")}`);
+  console.log(`  ${AI_GRADIENT.bold("Chats")}`);
   console.log(`  ${MUTED("─".repeat(45))}`);
 
   const rows = names.map(name => {
@@ -270,7 +271,7 @@ function printChatList(state) {
 
 function printConfig(cfg) {
   console.log("");
-  console.log(`  ${ACCENT.bold("Configuration")}`);
+  console.log(`  ${AI_GRADIENT.bold("Configuration")}`);
   console.log(`  ${MUTED("─".repeat(50))}`);
 
   const safe = { ...cfg, api_key: cfg.api_key ? cfg.api_key.slice(0, 8) + "…" : "(not set)" };
@@ -295,7 +296,7 @@ function printAutopilotConfig(cfg) {
   const ap = cfg.autopilot || {};
 
   log.br();
-  console.log(`  ${AUTO_CLR.bold("🤖 Autopilot Configuration")}`);
+  console.log(`  ${AI_GRADIENT.bold("🤖 Autopilot Configuration")}`);
   console.log(`  ${MUTED("─".repeat(45))}`);
 
   const rows = [

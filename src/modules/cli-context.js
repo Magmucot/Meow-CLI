@@ -16,6 +16,10 @@ import {
   ACCENT
 } from "../core.js";
 
+/**
+ * Creates and initializes the CLI application context.
+ * @returns {Object} The CLI context object.
+ */
 const createCliContext = () => {
   migrateLegacyData();
   try { fs.mkdirSync(ASSIST_DIR, { recursive: true }); } catch {}
@@ -42,6 +46,9 @@ const createCliContext = () => {
     activeAutopilot,
   };
 
+  /**
+   * Saves current history and configuration to disk.
+   */
   ctx.saveState = () => {
     ctx.history = ctx.messages.filter(m => m.role !== "system").map(m => {
       if (m.role === "user" && Array.isArray(m.content))
@@ -57,6 +64,9 @@ const createCliContext = () => {
     saveHistoryState(ctx.historyState);
   };
 
+  /**
+   * Re-renders the application banner.
+   */
   ctx.refreshBanner = () => {
     const pinsCount = loadPins().length;
     banner(ctx.cfg, ctx.currentChat, ctx.history.length, pinsCount);
@@ -65,6 +75,10 @@ const createCliContext = () => {
   return ctx;
 };
 
+/**
+ * Registers global signal handlers (SIGINT) for the CLI.
+ * @param {Object} ctx - The CLI context.
+ */
 const registerSignalHandlers = (ctx) => {
   let ctrlCCount = 0;
   let ctrlCTimer = null;

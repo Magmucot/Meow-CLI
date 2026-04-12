@@ -58,4 +58,5 @@ Built-in workspace sandbox prevents the agent from touching files outside your p
 ---
 
 ## 📜 License
-MIT © cons0leweb
+![License](https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-blue.svg)
+

@@ -760,13 +760,139 @@ async function executeTool(name, args, cfg) {
     case "http_request":  return await httpRequest(args, cfg.auto_yes);
     case "web_search":    return await webSearch(args, cfg.auto_yes);
     case "tool_chain":    return await toolChain(args.steps, cfg);
+    // ─── v3: New tools ──────────────────────────────────────────────────
+    case "delegate_task": {
+      const { delegateTask } = await import("./agents/subagent.js");
+      return await delegateTask(args, cfg);
+    }
+    case "git_diff": {
+      const { gitDiff } = await import("./smart/cicd.js");
+      return gitDiff(args);
+    }
+    case "git_log": {
+      const { gitLog } = await import("./smart/cicd.js");
+      return gitLog(args);
+    }
+    case "git_commit": {
+      const { gitCommit } = await import("./smart/cicd.js");
+      return gitCommit(args);
+    }
+    case "git_branch": {
+      const { gitBranch } = await import("./smart/cicd.js");
+      return gitBranch(args);
+    }
+    case "git_status": {
+      const { gitStatus } = await import("./smart/cicd.js");
+      return gitStatus();
+    }
+    case "ci_pipeline": {
+      const { ciTool } = await import("./smart/cicd.js");
+      return await ciTool(args, cfg);
+    }
     default:              return `❌ Unknown tool: ${name}`;
   }
 }
 
+// ─── Extended Tool Definitions (v3) ─────────────────────────────────────────
+
+const EXTENDED_TOOLS = [
+  {
+    type: "function",
+    function: {
+      name: "delegate_task",
+      description: "Delegate subtasks to parallel sub-agents. Each sub-agent runs independently with its own token budget. Use for multi-file operations, parallel searches, batch refactoring.",
+      parameters: {
+        type: "object",
+        properties: {
+          tasks: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                description: { type: "string", description: "Clear task description for the sub-agent" },
+                tools: { type: "array", items: { type: "string" }, description: "Tools this sub-agent may use" },
+                max_tokens: { type: "number", description: "Token budget for this sub-agent (default: auto)" },
+              },
+              required: ["description"]
+            },
+            description: "Array of subtasks to run in parallel"
+          }
+        },
+        required: ["tasks"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "git_diff",
+      description: "Show git diff (staged or unstaged changes)",
+      parameters: { type: "object", properties: {
+        staged: { type: "boolean", description: "Show staged changes" },
+        file: { type: "string", description: "Specific file" },
+      }}
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "git_log",
+      description: "Show recent git commits",
+      parameters: { type: "object", properties: {
+        count: { type: "number", description: "Number of commits (default 10)" },
+        file: { type: "string", description: "Filter by file" },
+      }}
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "git_commit",
+      description: "Stage and commit changes",
+      parameters: { type: "object", properties: {
+        message: { type: "string" },
+        files: { type: "array", items: { type: "string" } },
+      }, required: ["message"]}
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "git_branch",
+      description: "List, create, or checkout branches",
+      parameters: { type: "object", properties: {
+        create: { type: "boolean" }, checkout: { type: "boolean" }, name: { type: "string" },
+      }}
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "git_status",
+      description: "Show git working tree status",
+      parameters: { type: "object", properties: {} }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "ci_pipeline",
+      description: "Manage CI/CD. Actions: status (list workflows), generate (create GitHub Actions), heal (auto-fix failing tests)",
+      parameters: { type: "object", properties: {
+        action: { type: "string", enum: ["status", "generate", "heal"] },
+        description: { type: "string" },
+        name: { type: "string" },
+      }, required: ["action"]}
+    }
+  },
+];
+
+const ALL_TOOLS = [...TOOLS, ...EXTENDED_TOOLS];
+
 
 export {
-  TOOLS, confirm, promptLine, askUser, confirmUser, chooseUser,
+  TOOLS, ALL_TOOLS, EXTENDED_TOOLS,
+  confirm, promptLine, askUser, confirmUser, chooseUser,
   listDir, readFile, writeFile, patchFile, grepSearch,
   runShell, httpRequest, webSearch, toolChain, executeTool
 };

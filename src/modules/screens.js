@@ -104,6 +104,31 @@ function printHelp(cfg) {
         ["/context",             "Show project context (MEOW.md)"],
         ["/context edit",        "Edit project MEOW.md"],
         ["/context reload",      "Reload context into prompt"],
+        ["/audit",               "Show audit log"],
+        ["/incognito on|off",    "Incognito mode (no data persists)"],
+      ]
+    },
+    {
+      title: "🔀 Agents & Automation",
+      items: [
+        ["/lead [context]",      "AI Lead Developer — continuous improvement"],
+        ["/lead auto [context]", "Auto-mode: no prompts, picks tasks itself"],
+        ["/delegate <task>",     "Delegate task to parallel sub-agent"],
+        ["/pair <mode>",         "Pair programming (verbose/balanced/silent/off)"],
+        ["/ci status",           "Show CI/CD workflows"],
+        ["/ci generate <desc>",  "Generate GitHub Actions workflow"],
+        ["/ci heal",             "Self-heal failing tests"],
+      ]
+    },
+    {
+      title: "🧠 Memory & Intelligence",
+      items: [
+        ["/memory stats",        "Show memory statistics"],
+        ["/memory search <q>",   "Search project memory"],
+        ["/memory prefs",        "Show learned preferences"],
+        ["/memory clear",        "Clear project memory"],
+        ["/routing",             "Smart model routing config"],
+        ["/routing on|off",      "Toggle dynamic model selection"],
       ]
     },
     {
@@ -131,6 +156,7 @@ function printHelp(cfg) {
         ["/config",             t(cfg, "cmd_config")],
         ["/git [on|off]",       t(cfg, "cmd_git")],
         ["/lang <ru|en>",       "Switch UI language"],
+        ["/preview start|stop",  "Live dev server preview"],
       ]
     },
     {

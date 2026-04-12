@@ -16,6 +16,10 @@ import { handleRewind } from "./rewind.js";
 import { handleSessions } from "./sessions.js";
 import { handleCost } from "./cost.js";
 import { handleCompact } from "./compact.js";
+import {
+  handleLead, handleDelegate, handleMemory, handlePair,
+  handlePreview, handleCI, handleAudit, handleIncognito, handleRouting,
+} from "./v3.js";
 
 const commandHandlers = [
   handleGeneral,
@@ -34,6 +38,16 @@ const commandHandlers = [
   handleSessions,
   handleCost,
   handleCompact,
+  // v3 commands
+  handleLead,
+  handleDelegate,
+  handleMemory,
+  handlePair,
+  handlePreview,
+  handleCI,
+  handleAudit,
+  handleIncognito,
+  handleRouting,
   handleMisc,
 ];
 

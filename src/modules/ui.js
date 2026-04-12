@@ -90,7 +90,7 @@ marked.setOptions({
   })
 });
 
-// ─── Box Drawing Helpers ────────────────────────────────────────────────────
+// ─── Box Drawing & Layout Helpers ───────────────────────────────────────────
 
 function box(content, { title = "", color = ACCENT, width = COLS - 2, padding = 1, style = "rounded" } = {}) {
   const w = Math.max(width, 20);
@@ -114,6 +114,37 @@ function box(content, { title = "", color = ACCENT, width = COLS - 2, padding = 
   });
 
   return [top, ...lines, bot].join("\n");
+}
+
+function table(rows, { indent = 2, colSpacing = 2, colWidths = [] } = {}) {
+  const padding = " ".repeat(indent);
+  const spacing = " ".repeat(colSpacing);
+  
+  // Calculate max widths if not provided
+  const widths = [...colWidths];
+  rows.forEach(row => {
+    row.forEach((cell, i) => {
+      const len = stripAnsi(String(cell)).length;
+      if (!widths[i] || len > widths[i]) widths[i] = len;
+    });
+  });
+
+  rows.forEach(row => {
+    const line = row.map((cell, i) => {
+      const str = String(cell);
+      const len = stripAnsi(str).length;
+      const pad = " ".repeat(Math.max(0, (widths[i] || 0) - len));
+      return str + pad;
+    }).join(spacing);
+    console.log(padding + line);
+  });
+}
+
+function list(items, { indent = 2, bullet = "•", bulletColor = MUTED } = {}) {
+  const padding = " ".repeat(indent);
+  items.forEach(item => {
+    console.log(`${padding}${bulletColor}${bullet}${C.reset} ${item}`);
+  });
 }
 
 function stripAnsi(str) {
@@ -140,6 +171,28 @@ function tag(text, color = ACCENT) {
 
 function pill(text, color = MUTED) {
   return `${color}(${text})${C.reset}`;
+}
+
+// ─── Progress & Diff Helpers ────────────────────────────────────────────────
+
+function progressBar(current, total, { width = 20, label = "", color = ACCENT } = {}) {
+  const pct = Math.min(current / Math.max(total, 1), 1);
+  const filled = Math.round(pct * width);
+  const empty = width - filled;
+  const bar = `${color}${"━".repeat(filled)}${MUTED}${"━".repeat(empty)}${C.reset}`;
+  const pctStr = `${Math.round(pct * 100)}%`;
+  return `${bar} ${TEXT_DIM}${pctStr}${label ? ` ${label}` : ""}${C.reset}`;
+}
+
+function colorDiff(diffText) {
+  if (!diffText) return "";
+  return diffText.split("\n").map(line => {
+    if (line.startsWith("+") && !line.startsWith("+++")) return `${SUCCESS}${line}${C.reset}`;
+    if (line.startsWith("-") && !line.startsWith("---")) return `${ERROR}${line}${C.reset}`;
+    if (line.startsWith("@@")) return `${INFO}${line}${C.reset}`;
+    if (line.startsWith("diff ") || line.startsWith("index ")) return `${ACCENT}${C.bold}${line}${C.reset}`;
+    return `${TEXT_DIM}${line}${C.reset}`;
+  }).join("\n");
 }
 
 // ─── Spinner (Claude Code style — clean, minimal) ──────────────────────────
@@ -212,10 +265,7 @@ const log = {
   auto: (s) => console.log(`  ${AUTO_CLR}┃${C.reset} ${AUTO_CLR}${C.bold}autopilot${C.reset} ${TEXT_DIM}${s}${C.reset}`),
 
   step: (n, total, text) => {
-    const filled = Math.round((n / total) * 20);
-    const empty = 20 - filled;
-    const bar = `${ACCENT}${"━".repeat(filled)}${MUTED}${"━".repeat(empty)}${C.reset}`;
-    console.log(`  ${bar} ${TEXT_DIM}${text}${C.reset}`);
+    console.log(`  ${progressBar(n, total, { color: ACCENT, label: text })}`);
   },
 
   // Section header — used for grouping output

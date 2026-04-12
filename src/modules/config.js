@@ -74,6 +74,12 @@ const DEFAULT_CONFIG = {
     "/ctx": "/context",
     "/rw": "/rewind",
     "/sess": "/session",
+    // v3 aliases
+    "/ld": "/lead",
+    "/del": "/delegate",
+    "/mem": "/memory",
+    "/pr": "/preview",
+    "/rt": "/routing",
   },
   templates: {
     "fix": "Исправь ошибку в следующем коде: {code}. Объясни, в чем была проблема.",

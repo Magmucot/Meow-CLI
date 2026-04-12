@@ -240,17 +240,31 @@ async function main() {
     log.dim(`Loaded MEOW.md context (~${Math.ceil(totalChars / 3.5)} tokens)`);
   }
 
+  // Inject RAG memory context
+  try {
+    const { getMemoryStore } = await import("./modules/memory/rag.js");
+    const memStore = getMemoryStore();
+    const memStats = memStore.getStats();
+    if (memStats.total > 0) {
+      const memContext = memStore.buildContextForPrompt("project context");
+      if (memContext) {
+        ctx.messages[0].content += "\n\n" + memContext;
+        log.dim(`Memory: ${memStats.total} entries loaded`);
+      }
+    }
+  } catch {}
+
   // Show banner
   ctx.refreshBanner();
 
-  // Show tips using log.section and individual lines for better control
+  // Show tips
   console.log(box(
     `${TEXT_DIM}${t(ctx.cfg, "tips_body")}\n` +
-    `${TEXT_DIM}• /context — project context (MEOW.md)\n` +
-    `${TEXT_DIM}• /permissions — manage tool permissions\n` +
-    `${TEXT_DIM}• /rewind — undo file changes\n` +
-    `${TEXT_DIM}• /compact — compress context\n` +
-    `${TEXT_DIM}• /cost — token usage & cost`,
+    `${TEXT_DIM}• /lead — AI lead developer mode\n` +
+    `${TEXT_DIM}• /delegate <task> — parallel sub-agents\n` +
+    `${TEXT_DIM}• /memory — project memory (RAG)\n` +
+    `${TEXT_DIM}• /pair — pair programming mode\n` +
+    `${TEXT_DIM}• /ci — CI/CD management`,
     { title: t(ctx.cfg, "tips_title"), width: COLS - 2 }
   ));
   console.log("");
@@ -312,8 +326,30 @@ async function main() {
     // ── Auto-compact check ──
     const compactCheck = shouldAutoCompact(ctx.messages);
     if (compactCheck.shouldCompact) {
-      log.warn(`Context at ~${compactCheck.tokens.toLocaleString()} tokens (${compactCheck.percentage}% of threshold). Use /compact to free space.`);
+      log.warn(`Context at ~${compactCheck.tokens.toLocaleString()} tokens (${compactCheck.percentage}% of threshold). Auto-compacting...`);
+      const compactResult = await compactMessages(ctx.messages, ctx.cfg);
+      if (compactResult.compressed) {
+        ctx.messages = compactResult.messages;
+        printCompactResult(compactResult);
+      }
     }
+
+    // ── Smart Model Routing ──
+    let routedModel = null;
+    try {
+      const { getModelRouter } = await import("./modules/smart/model-router.js");
+      const router = getModelRouter(ctx.cfg);
+      if (router.enabled) {
+        const userText = typeof input === "string" ? input : "";
+        const route = router.selectModel(userText, estimateTokens(ctx.messages));
+        if (route.routed) {
+          routedModel = route.model;
+          log.dim(`${route.label} → ${route.model}`);
+        }
+      }
+    } catch {}
+
+    const effectiveCfg = routedModel ? { ...ctx.cfg, model: routedModel } : ctx.cfg;
 
     // ── API Call Loop (tool calls may loop) ──
     const spinnerText = allImages.length > 0 ? "Analyzing image" : "Thinking";
@@ -329,7 +365,7 @@ async function main() {
           const renderer = new StreamRenderer();
           spinner.start();
 
-          data = await callApiStream(ctx.messages, ctx.cfg, (chunk) => {
+          data = await callApiStream(ctx.messages, effectiveCfg, (chunk) => {
             if (chunk.type === "text" && chunk.content) {
               // Stop spinner on first text chunk
               spinner.stop();
@@ -365,7 +401,7 @@ async function main() {
         } else {
           // ── NON-STREAMING MODE (or tool follow-up rounds) ──
           if (!spinner.timer) spinner.start();
-          data = await callApi(ctx.messages, ctx.cfg);
+          data = await callApi(ctx.messages, effectiveCfg);
           const msg = data.choices[0].message;
 
           // Tool calls

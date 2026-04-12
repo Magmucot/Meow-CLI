@@ -2,7 +2,7 @@
 // api.js — Meow CLI API Layer (streaming + retry + smart error handling)
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { TOOLS } from "./tools.js";
+import { TOOLS, ALL_TOOLS } from "./tools.js";
 import { sanitizeMessagesForApi, sanitizeToolCallsForApi } from "./images.js";
 
 // ─── Retry Config ───────────────────────────────────────────────────────────
@@ -39,7 +39,7 @@ async function callApi(messages, cfg) {
   const payload = {
     model: cfg.model,
     messages: safeMessages,
-    tools: TOOLS,
+    tools: ALL_TOOLS,
     tool_choice: "auto",
     temperature: profile.temperature,
   };
@@ -121,7 +121,7 @@ async function callApiStream(messages, cfg, onChunk) {
   const payload = {
     model: cfg.model,
     messages: safeMessages,
-    tools: TOOLS,
+    tools: ALL_TOOLS,
     tool_choice: "auto",
     temperature: profile.temperature,
     stream: true,

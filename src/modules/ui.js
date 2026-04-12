@@ -207,7 +207,7 @@ const log = {
   },
 
   section: (title) => {
-    console.log(`\n  ${AI_GRADIENT(C.bold(title))}`);
+    console.log(`\n  ${C.bold(AI_GRADIENT(stripAnsi(title)))}`);
     console.log(`  ${MUTED("─".repeat(Math.min(COLS - 4, 50)))}`);
   },
 

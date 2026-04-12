@@ -1,0 +1,49 @@
+{
+  "name": "meow-cli-extension",
+  "displayName": "Meow CLI",
+  "description": "Powerful terminal-based AI Agent for VS Code",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "meow-cli-explorer",
+          "title": "Meow CLI",
+          "icon": "icon.png"
+        }
+      ]
+    },
+    "views": {
+      "meow-cli-explorer": [
+        {
+          "id": "meow-cli-view",
+          "type": "webview",
+          "name": "Meow CLI"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "meow-cli.openChat",
+        "title": "Open Meow CLI Chat"
+      }
+    ]
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "pretest": "npm run lint",
+    "test": "node ./test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.80.0",
+    "eslint": "^8.41.0"
+  }
+}

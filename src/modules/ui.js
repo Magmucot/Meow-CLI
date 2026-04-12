@@ -291,6 +291,7 @@ export {
   C, ACCENT, ACCENT2, ACCENT3, SUCCESS, WARNING, ERROR, INFO,
   MUTED, SURFACE, TEXT, TEXT_DIM, TOOL_CLR, USER_CLR, AI_CLR,
   IMG_CLR, AUTO_CLR, COLS, SHELL_TIMEOUT_MS,
-  rgb, bgRgb, box, stripAnsi, centerText, divider, badge, tag, pill,
+  rgb, bgRgb, box, table, list, stripAnsi, centerText, divider, badge, tag, pill,
+  progressBar, colorDiff,
   Spinner, log, renderMD
 };

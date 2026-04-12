@@ -1,8 +1,3 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// checkpoints.js — Meow CLI Checkpoint System
-// Auto-saves file snapshots before changes, supports /rewind
-// ═══════════════════════════════════════════════════════════════════════════
-
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
@@ -10,9 +5,16 @@ import { CHECKPOINT_DIR } from "./config.js";
 import { log, C, SUCCESS, MUTED, TEXT, TEXT_DIM, ACCENT, WARNING, box, COLS } from "./ui.js";
 import { timeAgo } from "./utils.js";
 
+/** @type {number} Maximum number of checkpoints to keep per session */
 const MAX_CHECKPOINTS = 50;
 
+/**
+ * Manages file system snapshots (checkpoints) to allow undoing AI-generated changes.
+ */
 class CheckpointManager {
+  /**
+   * @param {string|null} [sessionId=null] - Optional session identifier.
+   */
   constructor(sessionId = null) {
     this.sessionId = sessionId || crypto.randomUUID().slice(0, 8);
     this.dir = path.join(CHECKPOINT_DIR, this.sessionId);
@@ -21,6 +23,7 @@ class CheckpointManager {
     this._load();
   }
 
+  /** @private */
   _load() {
     try {
       if (fs.existsSync(this.indexFile)) {
@@ -31,6 +34,7 @@ class CheckpointManager {
     }
   }
 
+  /** @private */
   _save() {
     try {
       fs.mkdirSync(this.dir, { recursive: true });
@@ -40,7 +44,12 @@ class CheckpointManager {
     }
   }
 
-  // Save a checkpoint before modifying files
+  /**
+   * Creates a new checkpoint for the specified files.
+   * @param {string} description - Description of the change.
+   * @param {Array<string>} filePaths - Paths to the files to snapshot.
+   * @returns {Object} The created checkpoint object.
+   */
   create(description, filePaths) {
     const id = this.checkpoints.length;
     const snapshots = {};
@@ -73,7 +82,6 @@ class CheckpointManager {
 
     this.checkpoints.push(checkpoint);
 
-    // Prune old checkpoints
     while (this.checkpoints.length > MAX_CHECKPOINTS) {
       const old = this.checkpoints.shift();
       this._cleanupCheckpoint(old);
@@ -83,16 +91,21 @@ class CheckpointManager {
     return checkpoint;
   }
 
+  /** @private */
   _cleanupCheckpoint(cp) {
     if (!cp?.files) return;
     for (const info of Object.values(cp.files)) {
       if (info.snapFile) {
-        try { fs.unlinkSync(info.snapFile); } catch { /* ignore */ }
+        try { fs.unlinkSync(info.snapFile); } catch { }
       }
     }
   }
 
-  // Rewind to a specific checkpoint
+  /**
+   * Reverts the file system to a previous state.
+   * @param {number} [steps=1] - Number of checkpoints to rewind.
+   * @returns {Object} Result object with success status and details.
+   */
   rewind(steps = 1) {
     if (this.checkpoints.length === 0) {
       return { success: false, message: "No checkpoints available." };
@@ -103,8 +116,6 @@ class CheckpointManager {
     const restored = [];
     const errors = [];
 
-    // Restore files from the most recent checkpoint being reverted
-    // We go backwards: restore to the state BEFORE the target checkpoint
     for (let i = toRestore.length - 1; i >= 0; i--) {
       const cp = toRestore[i];
       for (const [filePath, info] of Object.entries(cp.files)) {
@@ -126,7 +137,6 @@ class CheckpointManager {
       }
     }
 
-    // Remove rewound checkpoints
     this.checkpoints = this.checkpoints.slice(0, targetIndex);
     this._save();
 
@@ -139,7 +149,10 @@ class CheckpointManager {
     };
   }
 
-  // List all checkpoints
+  /**
+   * Returns a list of all checkpoints in the current session.
+   * @returns {Array<Object>}
+   */
   list() {
     return this.checkpoints.map(cp => ({
       id: cp.id,
@@ -150,7 +163,9 @@ class CheckpointManager {
     }));
   }
 
-  // Print checkpoint list
+  /**
+   * Prints the list of checkpoints to the terminal.
+   */
   printList() {
     const list = this.list();
 
@@ -173,10 +188,10 @@ class CheckpointManager {
     console.log("");
   }
 
+  /** @returns {number} Current number of checkpoints */
   get count() {
     return this.checkpoints.length;
   }
 }
-
 
 export { CheckpointManager, MAX_CHECKPOINTS };

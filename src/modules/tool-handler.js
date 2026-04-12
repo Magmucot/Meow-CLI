@@ -56,7 +56,19 @@ async function handleTools(msg, messages, cfg, checkpointMgr = null) {
       const short = argsStr.length > 60 ? argsStr.slice(0, 57) + "…" : argsStr;
       console.log(`  ${TOOL_CLR}┃${C.reset} ${TOOL_CLR}${C.bold}${name}${C.reset} ${MUTED}${short}${C.reset}`);
 
-      let result = await executeTool(name, args, cfg);
+      // Sandbox validation for read-only tools too
+      if (sandbox) {
+        const check = sandbox.validate(name, args);
+        if (!check.allowed) {
+          const result = `❌ Blocked by sandbox: ${check.reason}`;
+          console.log(`  ${MUTED}┃${C.reset}   ${WARNING}${result}${C.reset}`);
+          if (audit) audit.logPermission(name, "sandbox_blocked");
+          return { call, result };
+        }
+      }
+
+      const env = sandbox ? sandbox.filterEnv() : process.env;
+      let result = await executeTool(name, args, cfg, env);
       if (audit) audit.logToolCall(name, args, result);
       if (memHooks) memHooks.afterToolCall(name, args, result || "");
       return { call, result };

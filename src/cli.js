@@ -20,6 +20,10 @@ import { SessionManager } from "./modules/sessions.js";
 import { CostTracker } from "./modules/cost-tracker.js";
 import { shouldAutoCompact, compactMessages, printCompactResult, estimateTokens } from "./modules/compact.js";
 
+/**
+ * Parses command line arguments.
+ * @returns {Object} Parsed options object.
+ */
 function parseArgs() {
   const args = process.argv.slice(2);
   const opts = {
@@ -59,6 +63,10 @@ function parseArgs() {
   return opts;
 }
 
+/**
+ * Executes the CLI in pipe mode (non-interactive).
+ * @param {Object} opts - CLI options.
+ */
 async function runPipeMode(opts) {
   const { createCliContext } = await import("./modules/cli-context.js");
   const ctx = createCliContext();
@@ -111,6 +119,9 @@ async function runPipeMode(opts) {
   }
 }
 
+/**
+ * Handles real-time streaming of AI responses to the terminal.
+ */
 class StreamRenderer {
   constructor() {
     this.buffer = "";
@@ -118,6 +129,10 @@ class StreamRenderer {
     this.started = false;
   }
 
+  /**
+   * Processes a new chunk from the stream.
+   * @param {Object} chunk - Stream chunk.
+   */
   onChunk(chunk) {
     if (chunk.type !== "text" || !chunk.content) return;
 
@@ -135,6 +150,7 @@ class StreamRenderer {
     }
   }
 
+  /** Finalizes the rendering and flushes the buffer. */
   finish() {
     if (this.buffer) {
       this._printLine(this.buffer);
@@ -146,6 +162,11 @@ class StreamRenderer {
     }
   }
 
+  /**
+   * Internal line printing helper with basic formatting.
+   * @private
+   * @param {string} line - Line text.
+   */
   _printLine(line) {
     let formatted = line;
     formatted = formatted.replace(/\*\*([^*]+)\*\*/g, (m, p1) => C.bold(p1));
@@ -159,6 +180,11 @@ class StreamRenderer {
   }
 }
 
+/**
+ * Renders a full message at once (non-streaming).
+ * @param {Object} msg - Message object.
+ * @param {Object} data - API response data.
+ */
 function renderNonStreaming(msg, data) {
   console.log(`\n  ${C.bold(AI_GRADIENT("Assistant"))}`);
   const output = renderMD(msg.content || "").trim();
@@ -166,6 +192,9 @@ function renderNonStreaming(msg, data) {
   console.log(`  ${MUTED("└")}\n`);
 }
 
+/**
+ * Main application entry point.
+ */
 async function main() {
   const opts = parseArgs();
 
@@ -176,18 +205,15 @@ async function main() {
   const ctx = createCliContext();
   registerSignalHandlers(ctx);
 
-  // Initialize new subsystems
   const sessionMgr = new SessionManager();
   const checkpointMgr = new CheckpointManager(sessionMgr.create());
   const costTracker = new CostTracker();
   const useStreaming = !opts.noStream;
 
-  // Attach to context for command handlers
   ctx.sessionMgr = sessionMgr;
   ctx.checkpointMgr = checkpointMgr;
   ctx.costTracker = costTracker;
 
-  // Resume session if requested
   if (opts.resume) {
     const sessions = sessionMgr.list();
     const targetId = opts.resume === "latest" ? sessions[0]?.id : opts.resume;
@@ -201,7 +227,6 @@ async function main() {
     }
   }
 
-  // Load project context (MEOW.md)
   const contextParts = loadProjectContext();
   if (contextParts.length > 0) {
     const basePrompt = ctx.cfg.profiles[ctx.cfg.profile]?.system || "";
@@ -210,7 +235,6 @@ async function main() {
     log.dim(`Loaded MEOW.md context (~${Math.ceil(totalChars / 3.5)} tokens)`);
   }
 
-  // Inject RAG memory context
   try {
     const { getMemoryStore } = await import("./modules/memory/rag.js");
     const memStore = getMemoryStore();
@@ -224,19 +248,16 @@ async function main() {
     }
   } catch { }
 
-  // Show banner
   ctx.refreshBanner();
-
   await loadPlugins(ctx.cfg, ctx);
 
-  // ─── Main Loop ──────────────────────────────────────────────────────
-
+  // Main Loop
   while (true) {
     let input;
     try {
       input = (await askInput(makePrompt(ctx.cfg, ctx.currentChat, ctx.history.length))).trim();
     } catch {
-      break; // readline closed
+      break;
     }
     if (!input) continue;
 
@@ -244,7 +265,6 @@ async function main() {
 
     if (input === "/plugins") input = "/plugin list";
 
-    // Plugin commands
     const pluginResult = await runPluginCommand(ctx, input);
     if (pluginResult?.handled) {
       if (pluginResult?.exit) break;
@@ -255,18 +275,15 @@ async function main() {
       }
     }
 
-    // Built-in commands
     const commandResult = await runCommandHandlers(ctx, input);
     if (commandResult?.exit) break;
     if (commandResult?.handled && !commandResult?.continue) continue;
     if (commandResult?.input !== undefined) input = commandResult.input;
 
-    // ── Check for inline images {img:path} ──
     const { text: parsedText, images: inlineImages } = parseInlineImages(input);
     const allImages = [...ctx.pendingImages, ...inlineImages];
     ctx.pendingImages = [];
 
-    // ── Build user message ──
     let userMsg;
     if (allImages.length > 0) {
       try { userMsg = { role: "user", content: buildVisionContent(parsedText, allImages) }; }
@@ -277,7 +294,6 @@ async function main() {
 
     ctx.messages.push(userMsg);
 
-    // ── Auto-compact check ──
     const compactCheck = shouldAutoCompact(ctx.messages);
     if (compactCheck.shouldCompact) {
       log.warn(`Context at ~${compactCheck.tokens.toLocaleString()} tokens (${compactCheck.percentage}% of threshold). Auto-compacting...`);
@@ -288,7 +304,6 @@ async function main() {
       }
     }
 
-    // ── Smart Model Routing ──
     let routedModel = null;
     try {
       const { getModelRouter } = await import("./modules/smart/model-router.js");
@@ -305,7 +320,6 @@ async function main() {
 
     const effectiveCfg = routedModel ? { ...ctx.cfg, model: routedModel } : ctx.cfg;
 
-    // ── API Call Loop (tool calls may loop) ──
     const spinnerText = allImages.length > 0 ? "Analyzing image" : "Thinking";
     const spinner = new Spinner(spinnerText);
 
@@ -315,13 +329,11 @@ async function main() {
         let data;
 
         if (useStreaming && toolRound === 0) {
-          // ── STREAMING MODE ──
           const renderer = new StreamRenderer();
           spinner.start();
 
           data = await callApiStream(ctx.messages, effectiveCfg, (chunk) => {
             if (chunk.type === "text" && chunk.content) {
-              // Stop spinner on first text chunk
               spinner.stop();
               renderer.onChunk(chunk);
             }
@@ -330,7 +342,6 @@ async function main() {
 
           const msg = data.choices[0].message;
 
-          // Check for tool calls
           if (msg.tool_calls && msg.tool_calls.length > 0) {
             renderer.finish();
             const toolLoop = await handleTools(msg, ctx.messages, ctx.cfg, checkpointMgr);
@@ -343,7 +354,6 @@ async function main() {
 
           renderer.finish();
 
-          // Cost tracking
           if (data.usage) {
             costTracker.record(data.usage, ctx.cfg.model);
             const costStr = costTracker.formatInline(data.usage, ctx.cfg.model);
@@ -353,12 +363,10 @@ async function main() {
           ctx.messages.push(msg);
           break;
         } else {
-          // ── NON-STREAMING MODE (or tool follow-up rounds) ──
           if (!spinner.timer) spinner.start();
           data = await callApi(ctx.messages, effectiveCfg);
           const msg = data.choices[0].message;
 
-          // Tool calls
           const toolLoop = await handleTools(msg, ctx.messages, ctx.cfg, checkpointMgr);
           if (toolLoop) {
             toolRound++;
@@ -367,11 +375,8 @@ async function main() {
           }
 
           spinner.stop();
-
-          // Render text response
           renderNonStreaming(msg, data);
 
-          // Cost tracking
           if (data.usage) {
             costTracker.record(data.usage, ctx.cfg.model);
             const costStr = costTracker.formatInline(data.usage, ctx.cfg.model);
@@ -383,10 +388,7 @@ async function main() {
         }
       }
 
-      // Save state
       ctx.saveState();
-
-      // Auto-save session
       sessionMgr.save({
         model: ctx.cfg.model,
         profile: ctx.cfg.profile,
@@ -397,7 +399,7 @@ async function main() {
     } catch (e) {
       spinner.stop();
       log.err(e.message);
-      ctx.messages.pop(); // Remove failed user message
+      ctx.messages.pop();
     }
   }
 

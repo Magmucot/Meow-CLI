@@ -1,8 +1,3 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// cli.js — Meow CLI v2 Main Loop
-// Streaming · Permissions · MEOW.md · Checkpoints · Sessions · Cost
-// ═══════════════════════════════════════════════════════════════════════════
-
 import { askInput } from "./modules/cli-input.js";
 import { intro, outro, note } from "@clack/prompts";
 import { createCliContext, registerSignalHandlers } from "./modules/cli-context.js";

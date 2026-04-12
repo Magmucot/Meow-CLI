@@ -16,6 +16,10 @@ import { DATA_DIR } from "../config.js";
 
 const LEAD_LOG_DIR = path.join(DATA_DIR, "lead-dev-logs");
 
+/**
+ * Enum for quality gate types.
+ * @enum {string}
+ */
 const QualityGate = {
   LINT: "lint",
   TEST: "test",
@@ -23,8 +27,9 @@ const QualityGate = {
   TYPE_CHECK: "type_check",
 };
 
-// ─── Project Analyzer ───────────────────────────────────────────────────────
-
+/**
+ * Analyzes projects to detect type and available quality gates (test, lint, build).
+ */
 class ProjectAnalyzer {
   constructor() {
     this.cwd = process.cwd();
@@ -35,6 +40,10 @@ class ProjectAnalyzer {
     this.typeCheckCmd = null;
   }
 
+  /**
+   * Detects project type and commands.
+   * @returns {ProjectAnalyzer}
+   */
   detect() {
     this.projectType = this._detectProjectType();
     this.testCmd = this._findCommand("test");
@@ -44,6 +53,7 @@ class ProjectAnalyzer {
     return this;
   }
 
+  /** @private */
   _detectProjectType() {
     if (fs.existsSync(path.join(this.cwd, "package.json"))) return "node";
     if (fs.existsSync(path.join(this.cwd, "Cargo.toml"))) return "rust";
@@ -53,6 +63,7 @@ class ProjectAnalyzer {
     return "unknown";
   }
 
+  /** @private */
   _findCommand(name) {
     try {
       if (this.projectType === "node") {
@@ -77,6 +88,7 @@ class ProjectAnalyzer {
     return null;
   }
 
+  /** @private */
   _findTypeCheck() {
     if (this.projectType === "node") {
       if (fs.existsSync(path.join(this.cwd, "tsconfig.json"))) return "npx tsc --noEmit";
@@ -85,6 +97,11 @@ class ProjectAnalyzer {
     return null;
   }
 
+  /**
+   * Runs a specific quality gate.
+   * @param {string} gate - Gate to run.
+   * @returns {Object} Result of the gate execution.
+   */
   runGate(gate) {
     const commands = {
       [QualityGate.LINT]: this.lintCmd,
@@ -102,11 +119,19 @@ class ProjectAnalyzer {
     }
   }
 
+  /**
+   * Runs all available quality gates.
+   * @returns {Array<Object>}
+   */
   runAllGates() {
     return [QualityGate.TYPE_CHECK, QualityGate.LINT, QualityGate.TEST, QualityGate.BUILD]
       .map(g => this.runGate(g));
   }
 
+  /**
+   * Gets a summary of detected capabilities.
+   * @returns {Object}
+   */
   getSummary() {
     return {
       type: this.projectType,
@@ -118,8 +143,9 @@ class ProjectAnalyzer {
   }
 }
 
-// ─── Task Suggester ─────────────────────────────────────────────────────────
-
+/**
+ * Task category definitions.
+ */
 const TASK_CATEGORIES = [
   { id: "fix_bugs", label: "Fix bugs & errors", priority: 1, icon: "🐛" },
   { id: "add_tests", label: "Improve test coverage", priority: 2, icon: "🧪" },
@@ -130,6 +156,13 @@ const TASK_CATEGORIES = [
   { id: "deps", label: "Update dependencies", priority: 7, icon: "📦" },
 ];
 
+/**
+ * Uses AI to suggest next tasks based on project state and quality gates.
+ * @param {Object} cfg - Configuration.
+ * @param {ProjectAnalyzer} analyzer - Project analyzer instance.
+ * @param {string} [context=""] - Additional context.
+ * @returns {Promise<Array<Object>>} List of suggested tasks.
+ */
 async function suggestNextTasks(cfg, analyzer, context = "") {
   const cwd = process.cwd();
   const structure = listDir(cwd, true);
@@ -175,9 +208,16 @@ async function suggestNextTasks(cfg, analyzer, context = "") {
   }
 }
 
-// ─── Lead Dev Session ───────────────────────────────────────────────────────
-
+/**
+ * Manages an AI Lead Developer session.
+ * Handles task suggestion, selection, execution via Autopilot, and quality gates.
+ */
 class LeadDevSession {
+  /**
+   * @param {Object} cfg - Configuration.
+   * @param {Array<Object>} messages - Message history.
+   * @param {Function} saveCallback - Callback to save state.
+   */
   constructor(cfg, messages, saveCallback) {
     this.cfg = cfg;
     this.messages = messages;
@@ -196,12 +236,20 @@ class LeadDevSession {
     this.autoMode = false;
   }
 
+  /** Aborts the session. */
   abort() { this.aborted = true; this.running = false; }
 
+  /** @private */
   _log(msg) {
     this.logEntries.push({ time: Date.now(), msg: typeof msg === "string" ? msg : JSON.stringify(msg) });
   }
 
+  /**
+   * Runs the lead developer session.
+   * @param {string} [initialContext=""] - Optional starting context.
+   * @param {Object} [options={}] - Run options.
+   * @returns {Promise<Object>} Session results.
+   */
   async run(initialContext = "", options = {}) {
     this.running = true;
     this.aborted = false;
@@ -303,6 +351,7 @@ class LeadDevSession {
     };
   }
 
+  /** @private */
   async _executeTask(task) {
     const { Autopilot } = await import("../autopilot.js");
     const ap = new Autopilot({ ...this.cfg, auto_yes: true, autopilot: { ...this.cfg.autopilot, max_iterations: 20 } },
@@ -321,6 +370,7 @@ class LeadDevSession {
     return result;
   }
 
+  /** @private */
   _printHeader(context) {
     const summary = this.analyzer.getSummary();
     const lines = [
@@ -335,6 +385,7 @@ class LeadDevSession {
     console.log("\n" + box(lines.join("\n"), { title: "🎯 LEAD DEV", color: ACCENT2, width: Math.min(COLS - 2, 65) }));
   }
 
+  /** @private */
   _printSuggestions(suggestions) {
     console.log(`\n  ${ACCENT2}${C.bold}📋 Suggested Tasks${C.reset}`);
     for (let i = 0; i < suggestions.length; i++) {
@@ -345,6 +396,7 @@ class LeadDevSession {
     }
   }
 
+  /** @private */
   _askUserChoice(suggestions) {
     return new Promise(resolve => {
       const prompt = `\n  ${TEXT}Choose (1-${suggestions.length}), ${MUTED}'a'=auto, 'q'=quit${C.reset}: `;
@@ -365,6 +417,7 @@ class LeadDevSession {
     });
   }
 
+  /** @private */
   _askContinue() {
     return new Promise(resolve => {
       process.stdout.write(`\n  ${TEXT}Continue? ${MUTED}[Y/n/a(uto)]${C.reset} `);
@@ -381,11 +434,13 @@ class LeadDevSession {
     });
   }
 
+  /** @private */
   _printStatus(round) {
     const elapsed = formatDuration(Date.now() - this.startTime);
     console.log(`  ${MUTED}Round ${round} · ✔${this.tasksCompleted.length} ✗${this.tasksFailed.length} · ${this.totalTokens} tokens · $${this.totalCost.toFixed(4)} · ${elapsed}${C.reset}`);
   }
 
+  /** @private */
   _printSummary() {
     const elapsed = formatDuration(Date.now() - this.startTime);
     const lines = [
@@ -406,6 +461,7 @@ class LeadDevSession {
     console.log("\n" + box(lines.join("\n"), { title: "🎯 LEAD DEV SUMMARY", color: ACCENT2, width: Math.min(COLS - 2, 65) }));
   }
 
+  /** @private */
   _saveLog() {
     try {
       fs.mkdirSync(LEAD_LOG_DIR, { recursive: true });

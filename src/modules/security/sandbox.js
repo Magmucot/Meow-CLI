@@ -1,7 +1,7 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// security/sandbox.js — Enterprise Security Layer
-// Encryption, audit log, incognito mode, workspace sandboxing
-// ═══════════════════════════════════════════════════════════════════════════
+/**
+ * Security module for Meow CLI.
+ * Provides workspace sandboxing, audit logging, data encryption, and incognito mode.
+ */
 
 import fs from "fs";
 import path from "path";
@@ -13,9 +13,13 @@ import { log, C, ACCENT, MUTED, TEXT_DIM, SUCCESS, ERROR, WARNING } from "../ui.
 const AUDIT_FILE = path.join(DATA_DIR, "audit.log");
 const ENCRYPTION_KEY_FILE = path.join(DATA_DIR, ".keyfile");
 
-// ─── Workspace Sandbox ──────────────────────────────────────────────────────
-
+/**
+ * Enforces security policies on file access and command execution.
+ */
 class WorkspaceSandbox {
+  /**
+   * @param {string} [workspaceRoot=process.cwd()] - The root directory allowed for access.
+   */
   constructor(workspaceRoot = process.cwd()) {
     this.root = path.resolve(workspaceRoot);
     this.blockedPatterns = [
@@ -42,6 +46,11 @@ class WorkspaceSandbox {
     ];
   }
 
+  /**
+   * Validates if a file path is within the allowed workspace and doesn't match blocked patterns.
+   * @param {string} targetPath - Path to validate.
+   * @returns {Object} { allowed: boolean, reason?: string }
+   */
   isPathAllowed(targetPath) {
     try {
       const resolved = path.resolve(targetPath);
@@ -70,6 +79,11 @@ class WorkspaceSandbox {
     }
   }
 
+  /**
+   * Validates if a shell command is safe to execute.
+   * @param {string} cmd - Command string.
+   * @returns {Object} { allowed: boolean, reason?: string }
+   */
   isCommandAllowed(cmd) {
     for (const pattern of this.blockedCommands) {
       if (pattern.test(cmd)) return { allowed: false, reason: `Dangerous command blocked` };
@@ -81,6 +95,11 @@ class WorkspaceSandbox {
     return { allowed: true };
   }
 
+  /**
+   * Filters out sensitive environment variables.
+   * @param {Object} [env=process.env] - Environment variables object.
+   * @returns {Object} Safe environment variables.
+   */
   filterEnv(env = process.env) {
     const safeEnv = {};
     for (const [key, value] of Object.entries(env)) {
@@ -92,6 +111,12 @@ class WorkspaceSandbox {
     return safeEnv;
   }
 
+  /**
+   * Generic validation for tool calls.
+   * @param {string} toolName - Name of the tool.
+   * @param {Object} args - Tool arguments.
+   * @returns {Object} { allowed: boolean, reason?: string }
+   */
   validate(toolName, args) {
     switch (toolName) {
       case "write_file":
@@ -116,15 +141,24 @@ class WorkspaceSandbox {
   }
 }
 
-// ─── Audit Logger ───────────────────────────────────────────────────────────
-
+/**
+ * Records tool calls, API calls, and file changes for auditing purposes.
+ */
 class AuditLogger {
+  /**
+   * @param {boolean} [enabled=true] - Whether logging is enabled.
+   */
   constructor(enabled = true) {
     this.enabled = enabled;
     this.sessionId = crypto.randomUUID().slice(0, 8);
     this.entries = [];
   }
 
+  /**
+   * Logs a generic action.
+   * @param {string} action - Action name.
+   * @param {Object} [details={}] - Additional details.
+   */
   log(action, details = {}) {
     if (!this.enabled) return;
     const entry = {
@@ -137,6 +171,12 @@ class AuditLogger {
     this._appendToFile(entry);
   }
 
+  /**
+   * Logs a tool execution.
+   * @param {string} toolName - Tool name.
+   * @param {Object} args - Tool arguments.
+   * @param {string} result - Execution result.
+   */
   logToolCall(toolName, args, result) {
     this.log("tool_call", {
       tool: toolName,
@@ -146,22 +186,40 @@ class AuditLogger {
     });
   }
 
+  /**
+   * Logs an API call.
+   * @param {string} model - Model used.
+   * @param {number} tokens - Tokens consumed.
+   * @param {number} cost - Estimated cost.
+   */
   logApiCall(model, tokens, cost) {
     this.log("api_call", { model, tokens, cost: cost?.toFixed(6) });
   }
 
+  /**
+   * Logs a permission decision.
+   * @param {string} tool - Tool name.
+   * @param {string} decision - Decision (e.g., 'allowed', 'denied').
+   */
   logPermission(tool, decision) {
     this.log("permission", { tool, decision });
   }
 
+  /**
+   * Logs a file modification.
+   * @param {string} filePath - Path to the file.
+   * @param {string} action - Action taken (e.g., 'write', 'patch').
+   */
   logFileChange(filePath, action) {
     this.log("file_change", { path: filePath, action });
   }
 
+  /** @private */
   _sanitize(str) {
     return str.replace(/sk-[a-zA-Z0-9]{20,}/g, "sk-***").replace(/Bearer\s+[a-zA-Z0-9._-]+/g, "Bearer ***");
   }
 
+  /** @private */
   _appendToFile(entry) {
     try {
       fs.mkdirSync(path.dirname(AUDIT_FILE), { recursive: true });
@@ -169,6 +227,11 @@ class AuditLogger {
     } catch {}
   }
 
+  /**
+   * Retrieves recent audit log entries.
+   * @param {number} [count=50] - Number of entries to retrieve.
+   * @returns {Array<Object>}
+   */
   getRecentEntries(count = 50) {
     try {
       if (!fs.existsSync(AUDIT_FILE)) return [];
@@ -177,10 +240,15 @@ class AuditLogger {
     } catch { return []; }
   }
 
+  /** Clears the audit log file. */
   clear() {
     try { fs.writeFileSync(AUDIT_FILE, ""); this.entries = []; } catch {}
   }
 
+  /**
+   * Prints recent audit log entries to the console.
+   * @param {number} [count=20] - Number of entries to print.
+   */
   printRecent(count = 20) {
     const entries = this.getRecentEntries(count);
     console.log(`\n  ${ACCENT}${C.bold}◆ Audit Log${C.reset} ${MUTED}(last ${entries.length})${C.reset}`);
@@ -196,14 +264,16 @@ class AuditLogger {
   }
 }
 
-// ─── Simple Encryption (AES-256-GCM) ────────────────────────────────────────
-
+/**
+ * Handles AES-256-GCM encryption and decryption for sensitive data.
+ */
 class DataEncryptor {
   constructor() {
     this.algorithm = "aes-256-gcm";
     this.key = null;
   }
 
+  /** @private */
   _getOrCreateKey() {
     if (this.key) return this.key;
     try {
@@ -222,6 +292,11 @@ class DataEncryptor {
     }
   }
 
+  /**
+   * Encrypts a plaintext string.
+   * @param {string} plaintext - String to encrypt.
+   * @returns {string} Encrypted data in 'iv:authTag:ciphertext' format.
+   */
   encrypt(plaintext) {
     const key = this._getOrCreateKey();
     const iv = crypto.randomBytes(16);
@@ -232,6 +307,11 @@ class DataEncryptor {
     return `${iv.toString("hex")}:${authTag}:${encrypted}`;
   }
 
+  /**
+   * Decrypts a ciphertext string.
+   * @param {string} ciphertext - Encrypted string.
+   * @returns {string} Decrypted plaintext.
+   */
   decrypt(ciphertext) {
     const key = this._getOrCreateKey();
     const [ivHex, authTagHex, encrypted] = ciphertext.split(":");
@@ -245,6 +325,12 @@ class DataEncryptor {
     return decrypted;
   }
 
+  /**
+   * Encrypts a file.
+   * @param {string} inputPath - Path to the file to encrypt.
+   * @param {string} [outputPath] - Path to save the encrypted file.
+   * @returns {string} Path to the encrypted file.
+   */
   encryptFile(inputPath, outputPath) {
     const plaintext = fs.readFileSync(inputPath, "utf8");
     const encrypted = this.encrypt(plaintext);
@@ -252,6 +338,12 @@ class DataEncryptor {
     return outputPath || inputPath + ".enc";
   }
 
+  /**
+   * Decrypts a file.
+   * @param {string} inputPath - Path to the encrypted file.
+   * @param {string} [outputPath] - Path to save the decrypted file.
+   * @returns {string} Decrypted plaintext.
+   */
   decryptFile(inputPath, outputPath) {
     const ciphertext = fs.readFileSync(inputPath, "utf8");
     const decrypted = this.decrypt(ciphertext);
@@ -260,8 +352,9 @@ class DataEncryptor {
   }
 }
 
-// ─── Incognito Mode ─────────────────────────────────────────────────────────
-
+/**
+ * Manages an incognito session where data persistence is disabled.
+ */
 class IncognitoSession {
   constructor() {
     this.active = false;
@@ -269,6 +362,10 @@ class IncognitoSession {
     this.savedDataDir = null;
   }
 
+  /**
+   * Starts an incognito session.
+   * @returns {Object} { success: boolean, tmpDir?: string, error?: string }
+   */
   start() {
     if (this.active) return { success: false, error: "Already in incognito mode" };
     this.active = true;
@@ -278,6 +375,10 @@ class IncognitoSession {
     return { success: true, tmpDir: this.tmpDir };
   }
 
+  /**
+   * Stops the current incognito session and destroys temporary data.
+   * @returns {Object} { success: boolean, error?: string }
+   */
   stop() {
     if (!this.active) return { success: false, error: "Not in incognito mode" };
     if (this.tmpDir) {
@@ -289,10 +390,13 @@ class IncognitoSession {
     return { success: true };
   }
 
+  /** @returns {boolean} */
   isActive() { return this.active; }
 
+  /** @returns {string} Current data directory (temp if incognito). */
   getDataDir() { return this.active ? this.tmpDir : DATA_DIR; }
 
+  /** @returns {boolean} */
   shouldPersist() { return !this.active; }
 }
 
@@ -303,9 +407,13 @@ let _audit = null;
 let _encryptor = null;
 let _incognito = null;
 
+/** @returns {WorkspaceSandbox} Singleton sandbox instance. */
 function getSandbox() { if (!_sandbox) _sandbox = new WorkspaceSandbox(); return _sandbox; }
+/** @returns {AuditLogger} Singleton audit logger instance. */
 function getAuditLogger() { if (!_audit) _audit = new AuditLogger(); return _audit; }
+/** @returns {DataEncryptor} Singleton encryptor instance. */
 function getEncryptor() { if (!_encryptor) _encryptor = new DataEncryptor(); return _encryptor; }
+/** @returns {IncognitoSession} Singleton incognito session instance. */
 function getIncognito() { if (!_incognito) _incognito = new IncognitoSession(); return _incognito; }
 
 export {

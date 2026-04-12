@@ -1,12 +1,14 @@
 
 import chalk from 'chalk';
 
+console.log('chalk.reset.open:', chalk.reset.open);
+console.log('chalk.red.open:', chalk.red.open);
+
 const hex = "#6CB4DC";
 const fn = chalk.hex(hex);
 
 console.log('fn.open:', fn.open);
-console.log('fn.close:', fn.close);
-console.log('String(fn):', String(fn));
+console.log('fn.level:', chalk.level);
 
 const color = (hex) => {
   const fn = chalk.hex(hex);

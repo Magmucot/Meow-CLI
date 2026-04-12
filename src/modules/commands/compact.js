@@ -1,12 +1,14 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// commands/compact.js — /compact command
-// ═══════════════════════════════════════════════════════════════════════════
-
 import {
   log, C, MUTED,
   compactMessages, compactWithAI, printCompactResult, estimateTokens,
 } from "../../core.js";
 
+/**
+ * Handles the /compact command for manual context compression.
+ * @param {Object} ctx - CLI context.
+ * @param {string} input - User input.
+ * @returns {Promise<Object|null>}
+ */
 const handleCompact = async (ctx, input) => {
   if (!input.startsWith("/compact")) return null;
 

@@ -180,7 +180,7 @@ function printHelp(cfg) {
   ];
 
   for (const section of sections) {
-    console.log(`  ${AI_GRADIENT.bold(section.title)}\n`);
+    console.log(`  ${AI_GRADIENT(C.bold(section.title))}\n`);
     table(section.items.map(([cmd, desc]) => [
       `${TEXT.bold(cmd)}`,
       `${MUTED(desc)}`
@@ -225,7 +225,7 @@ function printStats(cfg, currentChat, historyLen, pinsCount = 0) {
     ["CWD",             `${MUTED(process.cwd())}`],
   ];
 
-  console.log(`  ${AI_GRADIENT.bold(t(cfg, "stats_title"))}`);
+  console.log(`  ${AI_GRADIENT(C.bold(t(cfg, "stats_title")))}`);
   console.log(`  ${MUTED("─".repeat(50))}`);
   table(rows.map(([label, value]) => [`${TEXT_DIM(label)}`, value]), { colWidths: [18] });
   console.log(`  ${MUTED("─".repeat(50))}\n`);
@@ -252,7 +252,7 @@ function printChatList(state) {
   if (names.length === 0) { log.dim("No chats yet."); return; }
 
   log.br();
-  console.log(`  ${AI_GRADIENT.bold("Chats")}`);
+  console.log(`  ${AI_GRADIENT(C.bold("Chats"))}`);
   console.log(`  ${MUTED("─".repeat(45))}`);
 
   const rows = names.map(name => {
@@ -271,7 +271,7 @@ function printChatList(state) {
 
 function printConfig(cfg) {
   console.log("");
-  console.log(`  ${AI_GRADIENT.bold("Configuration")}`);
+  console.log(`  ${AI_GRADIENT(C.bold("Configuration"))}`);
   console.log(`  ${MUTED("─".repeat(50))}`);
 
   const safe = { ...cfg, api_key: cfg.api_key ? cfg.api_key.slice(0, 8) + "…" : "(not set)" };
@@ -296,7 +296,7 @@ function printAutopilotConfig(cfg) {
   const ap = cfg.autopilot || {};
 
   log.br();
-  console.log(`  ${AI_GRADIENT.bold("🤖 Autopilot Configuration")}`);
+  console.log(`  ${AI_GRADIENT(C.bold("🤖 Autopilot Configuration"))}`);
   console.log(`  ${MUTED("─".repeat(45))}`);
 
   const rows = [

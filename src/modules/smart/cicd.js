@@ -1,28 +1,34 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// smart/cicd.js — CI/CD Integration & Self-Healing
-// GitHub Actions, pipeline monitoring, auto-revert
-// ═══════════════════════════════════════════════════════════════════════════
-
 import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
 import { log, C, ACCENT, MUTED, TEXT, TEXT_DIM, SUCCESS, ERROR, WARNING } from "../ui.js";
 import { callApi } from "../api.js";
 
-// ─── Git Operations (no external deps) ──────────────────────────────────────
-
+/**
+ * Executes a git command and returns the output.
+ * @param {string} cmd - The git command to run.
+ * @param {string} [cwd=process.cwd()] - Working directory.
+ * @returns {string} Command output or error message.
+ */
 function git(cmd, cwd = process.cwd()) {
   try { return execSync(`git ${cmd}`, { encoding: "utf8", cwd, timeout: 15000 }).trim(); }
   catch (e) { return e.stdout?.trim() || e.stderr?.trim() || e.message; }
 }
 
+/**
+ * Checks if the current directory is inside a git repository.
+ * @returns {boolean}
+ */
 function isGitRepo() {
   try { execSync("git rev-parse --is-inside-work-tree", { stdio: "ignore" }); return true; }
   catch { return false; }
 }
 
-// ─── Git Tools for AI Agent ─────────────────────────────────────────────────
-
+/**
+ * Returns the git diff of the repository.
+ * @param {Object} [args={}] - Arguments (staged, file).
+ * @returns {string}
+ */
 function gitDiff(args = {}) {
   if (!isGitRepo()) return "❌ Not a git repository";
   const { staged, file } = args;
@@ -32,6 +38,11 @@ function gitDiff(args = {}) {
   return output || "ℹ No changes";
 }
 
+/**
+ * Returns the git commit log.
+ * @param {Object} [args={}] - Arguments (count, file, oneline).
+ * @returns {string}
+ */
 function gitLog(args = {}) {
   if (!isGitRepo()) return "❌ Not a git repository";
   const { count = 10, file, oneline = true } = args;
@@ -41,6 +52,11 @@ function gitLog(args = {}) {
   return git(cmd) || "ℹ No commits";
 }
 
+/**
+ * Manages git branches.
+ * @param {Object} [args={}] - Arguments (create, checkout, name).
+ * @returns {string}
+ */
 function gitBranch(args = {}) {
   if (!isGitRepo()) return "❌ Not a git repository";
   const { create, checkout, name } = args;
@@ -49,6 +65,11 @@ function gitBranch(args = {}) {
   return git("branch -a --no-color");
 }
 
+/**
+ * Creates a git commit.
+ * @param {Object} [args={}] - Arguments (message, files).
+ * @returns {string}
+ */
 function gitCommit(args = {}) {
   if (!isGitRepo()) return "❌ Not a git repository";
   const { message, files } = args;
@@ -61,19 +82,30 @@ function gitCommit(args = {}) {
   return git(`commit -m ${JSON.stringify(message)}`);
 }
 
+/**
+ * Stashes or pops git changes.
+ * @param {Object} [args={}] - Arguments (pop).
+ * @returns {string}
+ */
 function gitStash(args = {}) {
   if (!isGitRepo()) return "❌ Not a git repository";
   const { pop } = args;
   return pop ? git("stash pop") : git("stash");
 }
 
+/**
+ * Returns git status summary.
+ * @returns {string}
+ */
 function gitStatus() {
   if (!isGitRepo()) return "❌ Not a git repository";
   return git("status --short") || "ℹ Working tree clean";
 }
 
-// ─── CI/CD Pipeline Detection ───────────────────────────────────────────────
-
+/**
+ * Detects the CI/CD provider used in the current repository.
+ * @returns {string|null}
+ */
 function detectCIProvider() {
   const cwd = process.cwd();
   if (fs.existsSync(path.join(cwd, ".github/workflows"))) return "github_actions";
@@ -85,6 +117,10 @@ function detectCIProvider() {
   return null;
 }
 
+/**
+ * Lists CI/CD workflows for the current provider.
+ * @returns {Object}
+ */
 function listWorkflows() {
   const cwd = process.cwd();
   const provider = detectCIProvider();
@@ -101,12 +137,15 @@ function listWorkflows() {
           return { file: f, name: nameMatch?.[1]?.trim() || f, path: path.join(dir, f) };
         } catch { return { file: f, name: f, path: path.join(dir, f) }; }
       })
-    };
-  } catch { return { provider, workflows: [] }; }
+    };\n  } catch { return { provider, workflows: [] }; }
 }
 
-// ─── GitHub Actions Generator ───────────────────────────────────────────────
-
+/**
+ * Generates a GitHub Actions workflow using AI.
+ * @param {Object} cfg - Application configuration.
+ * @param {string} description - Description of the workflow requirements.
+ * @returns {Promise<Object>}
+ */
 async function generateWorkflow(cfg, description) {
   const cwd = process.cwd();
   const projectType = detectProjectType();
@@ -132,11 +171,16 @@ async function generateWorkflow(cfg, description) {
     }
 
     return { success: true, yaml, projectType };
-  } catch (e) {
-    return { success: false, error: e.message };
+  } catch (e) {\n    return { success: false, error: e.message };
   }
 }
 
+/**
+ * Saves a workflow YAML to the repository.
+ * @param {string} name - Base name of the workflow file.
+ * @param {string} yaml - YAML content.
+ * @returns {string} Path to the saved file.
+ */
 function saveWorkflow(name, yaml) {
   const dir = path.join(process.cwd(), ".github/workflows");
   fs.mkdirSync(dir, { recursive: true });
@@ -146,15 +190,23 @@ function saveWorkflow(name, yaml) {
   return filePath;
 }
 
-// ─── Self-Healing ───────────────────────────────────────────────────────────
-
+/**
+ * Automates testing and fixing of code failures.
+ */
 class SelfHealer {
+  /**
+   * @param {Object} cfg - Application configuration.
+   */
   constructor(cfg) {
     this.cfg = cfg;
     this.maxAttempts = 3;
     this.revertOnFailure = true;
   }
 
+  /**
+   * Checks for test failures and attempts to fix them autonomously.
+   * @returns {Promise<Object>} Healing result.
+   */
   async checkAndHeal() {
     if (!isGitRepo()) return { healed: false, reason: "Not a git repo" };
 
@@ -188,15 +240,16 @@ class SelfHealer {
     return { healed: false, reason: "Max attempts reached" };
   }
 
+  /** @private */
   _runTests() {
     try {
       const output = execSync("npm test 2>&1", { encoding: "utf8", timeout: 60000 });
       return { passed: true, output };
-    } catch (e) {
-      return { passed: false, output: (e.stdout || "") + (e.stderr || "") };
+    } catch (e) {\n      return { passed: false, output: (e.stdout || "") + (e.stderr || "") };
     }
   }
 
+  /** @private */
   async _attemptFix(errorOutput, attempt) {
     try {
       const data = await callApi([
@@ -214,13 +267,13 @@ class SelfHealer {
         }
         return true;
       }
-      return false;
-    } catch { return false; }
-  }
+      return false;\n    } catch { return false; }\n  }
 }
 
-// ─── Helper ─────────────────────────────────────────────────────────────────
-
+/**
+ * Detects the type of project based on configuration files.
+ * @returns {string} Project type (node, rust, go, python, or unknown).
+ */
 function detectProjectType() {
   const cwd = process.cwd();
   if (fs.existsSync(path.join(cwd, "package.json"))) return "node";
@@ -230,20 +283,21 @@ function detectProjectType() {
   return "unknown";
 }
 
-// ─── CI Tool Implementation ─────────────────────────────────────────────────
-
+/**
+ * Implementation of the ci_pipeline tool.
+ * @param {Object} args - Tool arguments.
+ * @param {Object} cfg - Application configuration.
+ * @returns {Promise<string>} Result summary.
+ */
 async function ciTool(args, cfg) {
-  const { action } = args;
-  switch (action) {
+  const { action } = args;\n  switch (action) {
     case "status": return JSON.stringify(listWorkflows(), null, 2);
-    case "generate": {
-      const result = await generateWorkflow(cfg, args.description || "CI pipeline");
+    case "generate": {\n      const result = await generateWorkflow(cfg, args.description || "CI pipeline");
       if (!result.success) return `❌ ${result.error}`;
       const filePath = saveWorkflow(args.name || "ci", result.yaml);
       return `✅ Workflow saved: ${filePath}\n\n${result.yaml}`;
     }
-    case "heal": {
-      const healer = new SelfHealer(cfg);
+    case "heal": {\n      const healer = new SelfHealer(cfg);
       const result = await healer.checkAndHeal();
       return JSON.stringify(result, null, 2);
     }
@@ -251,11 +305,9 @@ async function ciTool(args, cfg) {
   }
 }
 
-// ─── Git + CI Tool Definitions for AI ───────────────────────────────────────
-
+/** @type {Array<Object>} Definitions of git and CI tools for the AI */
 const GIT_TOOLS = [
-  {
-    type: "function",
+  {\n    type: "function",
     function: {
       name: "git_diff",
       description: "Show git diff (staged or unstaged)",
@@ -264,8 +316,7 @@ const GIT_TOOLS = [
       }}
     }
   },
-  {
-    type: "function",
+  {\n    type: "function",
     function: {
       name: "git_log",
       description: "Show recent git commits",
@@ -275,8 +326,7 @@ const GIT_TOOLS = [
       }}
     }
   },
-  {
-    type: "function",
+  {\n    type: "function",
     function: {
       name: "git_commit",
       description: "Stage files and commit with message",
@@ -286,8 +336,7 @@ const GIT_TOOLS = [
       }, required: ["message"]}
     }
   },
-  {
-    type: "function",
+  {\n    type: "function",
     function: {
       name: "git_branch",
       description: "List, create, or checkout branches",
@@ -296,16 +345,14 @@ const GIT_TOOLS = [
       }}
     }
   },
-  {
-    type: "function",
+  {\n    type: "function",
     function: {
       name: "git_status",
       description: "Show working tree status",
       parameters: { type: "object", properties: {} }
     }
   },
-  {
-    type: "function",
+  {\n    type: "function",
     function: {
       name: "ci_pipeline",
       description: "Manage CI/CD pipelines. Actions: status (list workflows), generate (create workflow), heal (self-healing test fix)",

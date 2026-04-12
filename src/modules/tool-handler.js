@@ -129,7 +129,8 @@ async function handleTools(msg, messages, cfg, checkpointMgr = null) {
       checkpointMgr.create(`${name}: ${args.path}`, [args.path]);
     }
 
-    let result = await executeTool(name, args, cfg);
+    const env = sandbox ? sandbox.filterEnv() : process.env;
+    let result = await executeTool(name, args, cfg, env);
 
     if (audit) audit.logToolCall(name, args, result);
     if (memHooks) memHooks.afterToolCall(name, args, result || "");

@@ -168,6 +168,15 @@ function getWebviewContent() {
             }
         });
 
+        window.addEventListener('message', event => {
+            const message = event.data;
+            switch (message.type) {
+                case 'receiveMessage':
+                    appendMessage(message.role, message.text);
+                    break;
+            }
+        });
+
         function appendMessage(role, text) {
             const div = document.createElement('div');
             div.style.marginBottom = '10px';

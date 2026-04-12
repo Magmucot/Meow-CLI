@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// ui.js — Meow CLI UI (Modern Library-based)
+// ui.js — Meow CLI UI (Modern Library-based + Custom Beauty)
 // ═══════════════════════════════════════════════════════════════════════════
 
 import path from "path";
@@ -29,7 +29,7 @@ const C = {
   white:     chalk.white,
 };
 
-// Claude Code–inspired palette using hex colors for precision
+// Claude Code–inspired palette
 const ACCENT    = chalk.hex("#CC7832"); // terracotta orange
 const ACCENT2   = chalk.hex("#A98EDA"); // soft lavender
 const ACCENT3   = chalk.hex("#CC7832");
@@ -49,13 +49,17 @@ const AUTO_CLR  = chalk.hex("#DEB858"); // autopilot = amber
 const SHELL_TIMEOUT_MS = parseInt(process.env.MEOWCLI_SHELL_TIMEOUT_MS || "30000", 10);
 const COLS = Math.min(process.stdout.columns || 80, 100);
 
+// Gradients
+const MEOW_GRADIENT = gradient(["#CC7832", "#EBCB8B", "#A98EDA"]);
+const AI_GRADIENT = gradient(["#CC7832", "#A98EDA"]);
+
 marked.setOptions({
   renderer: new TerminalRenderer({
     code: (code) => `\n${MUTED("  ┃")} ${code}\n`,
     blockquote: (quote) => `  ${MUTED("┃")} ${TEXT_DIM(quote)}\n`,
     heading: (text, level) => {
       if (level === 1) return `\n${ACCENT.bold("# " + text)}\n`;
-      if (level === 2) return `\n${ACCENT.bold("## " + text)}\n`;
+      if (level === 2) return `\n${ACCENT2.bold("## " + text)}\n`;
       return `\n${TEXT.bold(text)}\n`;
     },
     hr: () => `\n${MUTED("─".repeat(Math.min(COLS - 4, 60)))}\n`,
@@ -131,25 +135,39 @@ function colorDiff(diffText) {
   }).join("\n");
 }
 
-// ─── Spinner (using Clack) ──────────────────────────────────────────────────
+// ─── Spinner (Custom + Beautiful) ───────────────────────────────────────────
 
 class Spinner {
   constructor(text = "Thinking") {
-    this.s = clackSpinner();
+    this.frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
     this.text = text;
+    this.i = 0;
+    this.timer = null;
+    this.startTime = 0;
   }
 
   start() {
-    this.s.start(this.text);
+    this.startTime = Date.now();
+    this.i = 0;
+    process.stdout.write("\x1b[?25l"); // hide cursor
+    this.timer = setInterval(() => {
+      const elapsed = ((Date.now() - this.startTime) / 1000).toFixed(1);
+      const frame = this.frames[this.i % this.frames.length];
+      // Claude Code style: muted spinner, dim elapsed time
+      process.stdout.write(
+        `\r  ${ACCENT(frame)} ${TEXT_DIM(this.text)} ${MUTED(elapsed + "s")}  `
+      );
+      this.i++;
+    }, 80);
   }
 
-  update(text) {
-    this.text = text;
-    this.s.message(text);
-  }
+  update(text) { this.text = text; }
 
   stop(msg = "") {
-    this.s.stop(msg);
+    if (this.timer) { clearInterval(this.timer); this.timer = null; }
+    process.stdout.write("\r" + " ".repeat(COLS - 1) + "\r");
+    process.stdout.write("\x1b[?25h"); // show cursor
+    if (msg) console.log(`  ${SUCCESS("✔")} ${TEXT(msg)}`);
   }
 }
 
@@ -189,7 +207,7 @@ const log = {
   },
 
   section: (title) => {
-    console.log(`\n  ${ACCENT.bold(title)}`);
+    console.log(`\n  ${AI_GRADIENT.bold(title)}`);
     console.log(`  ${MUTED("─".repeat(Math.min(COLS - 4, 50)))}`);
   },
 
@@ -205,6 +223,7 @@ export {
   C, ACCENT, ACCENT2, ACCENT3, SUCCESS, WARNING, ERROR, INFO,
   MUTED, TEXT, TEXT_DIM, TOOL_CLR, USER_CLR, AI_CLR,
   IMG_CLR, AUTO_CLR, COLS, SHELL_TIMEOUT_MS,
+  MEOW_GRADIENT, AI_GRADIENT,
   box, table, list, stripAnsi,
   progressBar, colorDiff,
   Spinner, log, renderMD, gradient

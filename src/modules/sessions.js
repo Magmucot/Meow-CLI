@@ -13,7 +13,9 @@ const MAX_SESSIONS = 20;
  */
 class SessionManager {
   constructor() {
+    /** @type {string|null} Current session ID */
     this.sessionId = null;
+    /** @type {string} Directory for session files */
     this.dir = SESSION_DIR;
     fs.mkdirSync(this.dir, { recursive: true });
   }

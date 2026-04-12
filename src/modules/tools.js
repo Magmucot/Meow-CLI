@@ -7,8 +7,10 @@ import { CONF_FILE, DATA_DIR, UNDO_FILE } from "./config.js";
 import { loadUndoState, saveUndoState } from "./persistence.js";
 import { callApi } from "./api.js";
 
-// ─── Tool Definitions ───────────────────────────────────────────────────────
-
+/**
+ * Core tool definitions for the AI model.
+ * @type {Array<Object>}
+ */
 const TOOLS = [
   {
     type: "function",
@@ -208,8 +210,13 @@ const TOOLS = [
   }
 ];
 
-// ─── UI Helpers (Internal) ──────────────────────────────────────────────────
-
+/**
+ * Internal helper for reading a single line from stdin.
+ * @param {string} prompt - Prompt text.
+ * @param {boolean} [auto_yes=false] - If true, return default immediately.
+ * @param {string} [defaultValue=""] - Default value to return.
+ * @returns {Promise<string>} User input or default.
+ */
 async function promptLine(prompt, auto_yes = false, defaultValue = "") {
   if (auto_yes) return defaultValue || "";
   return new Promise(resolve => {
@@ -228,11 +235,25 @@ async function promptLine(prompt, auto_yes = false, defaultValue = "") {
   });
 }
 
+/**
+ * Asks the user a question.
+ * @param {string} question - The question to ask.
+ * @param {boolean} [auto_yes=false] - Auto-yes mode.
+ * @param {string} [defaultValue=""] - Default response.
+ * @returns {Promise<string>}
+ */
 async function askUser(question, auto_yes = false, defaultValue = "") {
   const hint = defaultValue ? `(${defaultValue})` : "";
   return await promptLine(`${question} ${MUTED}${hint}${C.reset}`, auto_yes, defaultValue);
 }
 
+/**
+ * Asks the user for confirmation.
+ * @param {string} message - The confirmation message.
+ * @param {boolean} [auto_yes=false] - Auto-yes mode.
+ * @param {boolean} [defaultValue=false] - Default boolean value.
+ * @returns {Promise<boolean>}
+ */
 async function confirmUser(message, auto_yes = false, defaultValue = false) {
   if (auto_yes) return !!defaultValue;
   return new Promise(resolve => {
@@ -252,6 +273,14 @@ async function confirmUser(message, auto_yes = false, defaultValue = false) {
   });
 }
 
+/**
+ * Presents a list of options to the user.
+ * @param {string} question - Selection prompt.
+ * @param {Array<string>} options - List of choices.
+ * @param {boolean} [auto_yes=false] - Auto-yes mode.
+ * @param {number} [defaultIndex=0] - Default option index.
+ * @returns {Promise<string>} Selected option.
+ */
 async function chooseUser(question, options, auto_yes = false, defaultIndex = 0) {
   const safeOptions = Array.isArray(options) ? options : [];
   const idx = Math.min(Math.max(parseInt(defaultIndex, 10) || 0, 0), Math.max(safeOptions.length - 1, 0));
@@ -264,22 +293,27 @@ async function chooseUser(question, options, auto_yes = false, defaultIndex = 0)
   return safeOptions[idx] ?? "";
 }
 
-// ─── Git Auto-Commit Helpers ────────────────────────────────────────────────
-
+/** @returns {boolean} True if git is installed */
 function isGitAvailable() {
   try { execSync("git --version", { stdio: "ignore" }); return true; } catch { return false; }
 }
 
+/** @returns {boolean} True if current directory is inside a git repo */
 function isInsideGitRepo() {
   try { execSync("git rev-parse --is-inside-work-tree", { stdio: "ignore" }); return true; } catch { return false; }
 }
 
+/**
+ * Ensures a git repository exists in the current directory.
+ * @returns {boolean}
+ */
 function ensureGitRepo() {
   if (!isGitAvailable()) return false;
   if (isInsideGitRepo()) return true;
   try { execSync("git init", { stdio: "ignore" }); return true; } catch { return false; }
 }
 
+/** Sets default git user if not configured. */
 function ensureGitUser() {
   try {
     const name = execSync("git config user.name", { encoding: "utf8" }).trim();
@@ -289,23 +323,44 @@ function ensureGitUser() {
   } catch { /* ignore */ }
 }
 
+/** @returns {boolean} True if there are uncommitted changes */
 function gitHasChanges() {
   try { return execSync("git status --porcelain", { encoding: "utf8" }).trim().length > 0; } catch { return false; }
 }
 
+/**
+ * Escapes a string for shell use.
+ * @param {string} value - String to escape.
+ * @returns {string}
+ */
 function escapeShellArg(value) {
   return String(value || "").replace(/\s+/g, " ").replace(/[\r\n]+/g, " ").trim();
 }
 
+/**
+ * Shortens a shell command for display.
+ * @param {string} cmd - Command string.
+ * @returns {string}
+ */
 function describeShellCommand(cmd) {
   return escapeShellArg(cmd).slice(0, 80) || "shell command";
 }
 
+/**
+ * Formats a file path for display relative to CWD.
+ * @param {string} filePath - Path to format.
+ * @returns {string}
+ */
 function describeFileChange(filePath) {
   const rel = path.relative(process.cwd(), filePath) || path.basename(filePath);
   return rel.replace(/\\/g, "/");
 }
 
+/**
+ * Gets a summary of staged git changes.
+ * @param {number} [maxChars=6000] - Character limit.
+ * @returns {string}
+ */
 function getStagedDiffSummary(maxChars = 6000) {
   try {
     const diff = execSync("git diff --cached --stat", { encoding: "utf8" }).trim();
@@ -315,6 +370,14 @@ function getStagedDiffSummary(maxChars = 6000) {
   } catch { return ""; }
 }
 
+/**
+ * Generates an AI-powered git commit message.
+ * @param {Object} data - Commit data.
+ * @param {string} data.summary - Diff summary.
+ * @param {string} data.fallback - Fallback message.
+ * @param {Object} cfg - Configuration.
+ * @returns {Promise<string>}
+ */
 async function generateAiCommitMessage({ summary, fallback }, cfg) {
   if (!cfg?.api_key) return fallback;
   const profile = cfg.profiles?.[cfg.profile] || cfg.profiles?.default || { temperature: 0.2 };
@@ -339,6 +402,11 @@ async function generateAiCommitMessage({ summary, fallback }, cfg) {
   }
 }
 
+/**
+ * Automatically stages and commits changes if enabled.
+ * @param {string} message - Default commit message.
+ * @param {Object} cfg - Configuration.
+ */
 async function autoGitCommit(message, cfg) {
   const gitCfg = cfg?.git || {};
   if (gitCfg.autocommit === false) return;
@@ -366,8 +434,12 @@ async function autoGitCommit(message, cfg) {
   } catch { /* ignore */ }
 }
 
-// ─── Tool Implementations ───────────────────────────────────────────────────
-
+/**
+ * Lists directory contents.
+ * @param {string} p - Directory path.
+ * @param {boolean} [recursive=false] - Recursive mode.
+ * @returns {string} Formatted list or error message.
+ */
 function listDir(p, recursive = false) {
   try {
     const dir = path.resolve(p);
@@ -379,7 +451,6 @@ function listDir(p, recursive = false) {
       }).sort().join("\n");
     }
 
-    // Recursive listing (max 3 levels, skip node_modules/.git etc.)
     const SKIP = new Set(["node_modules", ".git", ".next", "dist", "build", "__pycache__", ".venv", "venv"]);
     const MAX_ENTRIES = 500;
     const results = [];
@@ -408,6 +479,13 @@ function listDir(p, recursive = false) {
   } catch (e) { return `❌ Error: ${e.message}`; }
 }
 
+/**
+ * Reads a file's content.
+ * @param {string} p - File path.
+ * @param {number} [startLine] - Start line (1-based).
+ * @param {number} [endLine] - End line (inclusive).
+ * @returns {string} File content or error.
+ */
 function readFile(p, startLine, endLine) {
   try {
     const file = path.resolve(p);
@@ -415,7 +493,6 @@ function readFile(p, startLine, endLine) {
 
     let data = fs.readFileSync(file, "utf8");
 
-    // Line range support
     if (startLine || endLine) {
       const lines = data.split("\n");
       const start = Math.max(1, startLine || 1) - 1;
@@ -430,13 +507,19 @@ function readFile(p, startLine, endLine) {
   } catch (e) { return `❌ Read error: ${e.message}`; }
 }
 
+/**
+ * Writes content to a file.
+ * @param {string} p - File path.
+ * @param {string} content - Full content.
+ * @param {Object} [cfg={}] - Configuration.
+ * @returns {Promise<string>} Result message.
+ */
 async function writeFile(p, content, cfg = {}) {
   try {
     const file = path.resolve(p);
     const existed = fs.existsSync(file);
     const old = existed ? fs.readFileSync(file, "utf8") : "";
 
-    // Save undo state
     const undoState = loadUndoState();
     undoState.push({ path: file, existed, content: old, time: Date.now() });
     saveUndoState(undoState);
@@ -451,6 +534,14 @@ async function writeFile(p, content, cfg = {}) {
   } catch (e) { return `❌ Write error: ${e.message}`; }
 }
 
+/**
+ * Patches a file by replacing a string.
+ * @param {string} p - File path.
+ * @param {string} oldString - String to find.
+ * @param {string} newString - Replacement string.
+ * @param {Object} [cfg={}] - Configuration.
+ * @returns {Promise<string>} Result message.
+ */
 async function patchFile(p, oldString, newString, cfg = {}) {
   try {
     const file = path.resolve(p);
@@ -460,10 +551,8 @@ async function patchFile(p, oldString, newString, cfg = {}) {
 
     const original = fs.readFileSync(file, "utf8");
 
-    // Find the old string
     const index = original.indexOf(oldString);
     if (index === -1) {
-      // Try to help: show nearby context
       const lines = original.split("\n");
       const firstWords = oldString.split("\n")[0].trim().slice(0, 40);
       const candidates = lines
@@ -479,7 +568,6 @@ async function patchFile(p, oldString, newString, cfg = {}) {
       return `❌ old_string not found in ${describeFileChange(file)}.${hint}\nMake sure the string matches exactly (including whitespace and indentation).`;
     }
 
-    // Check for multiple occurrences
     const secondIndex = original.indexOf(oldString, index + 1);
     if (secondIndex !== -1) {
       const lineNum1 = original.slice(0, index).split("\n").length;
@@ -487,10 +575,8 @@ async function patchFile(p, oldString, newString, cfg = {}) {
       return `❌ old_string found multiple times (lines ${lineNum1} and ${lineNum2}). Please provide a more specific/unique string to match.`;
     }
 
-    // Apply patch
     const patched = original.slice(0, index) + newString + original.slice(index + oldString.length);
 
-    // Save undo state
     const undoState = loadUndoState();
     undoState.push({ path: file, existed: true, content: original, time: Date.now() });
     saveUndoState(undoState);
@@ -505,12 +591,19 @@ async function patchFile(p, oldString, newString, cfg = {}) {
   } catch (e) { return `❌ Patch error: ${e.message}`; }
 }
 
+/**
+ * Searches for a pattern in files.
+ * @param {string} pattern - Search regex.
+ * @param {string} searchPath - Directory to search.
+ * @param {string} [include] - Glob include pattern.
+ * @param {number} [maxResults=50] - Limit results.
+ * @returns {string} Search results.
+ */
 function grepSearch(pattern, searchPath, include, maxResults = 50) {
   try {
     const dir = path.resolve(searchPath || ".");
     if (!fs.existsSync(dir)) return `❌ Path not found: ${dir}`;
 
-    // Try native grep first (much faster)
     try {
       const parts = ["grep", "-rn", "--color=never"];
       if (include) parts.push(`--include=${include}`);
@@ -527,7 +620,6 @@ function grepSearch(pattern, searchPath, include, maxResults = 50) {
 
       const lines = output.split("\n").slice(0, maxResults);
       const results = lines.map(line => {
-        // Format: /path/to/file:linenum:content
         const rel = line.replace(dir + "/", "").replace(dir + "\\", "");
         return rel;
       });
@@ -539,15 +631,16 @@ function grepSearch(pattern, searchPath, include, maxResults = 50) {
       return result;
 
     } catch (e) {
-      // grep returns exit code 1 if no matches — that's OK
       if (e.status === 1) return "ℹ No matches found.";
-
-      // Fallback to JS-based search
       return grepSearchJS(pattern, dir, include, maxResults);
     }
   } catch (e) { return `❌ Search error: ${e.message}`; }
 }
 
+/**
+ * Pure JS fallback for grepSearch.
+ * @private
+ */
 function grepSearchJS(pattern, dir, include, maxResults) {
   const SKIP = new Set(["node_modules", ".git", ".next", "dist", "build", "__pycache__"]);
   const regex = new RegExp(pattern, "gi");
@@ -591,8 +684,13 @@ function grepSearchJS(pattern, dir, include, maxResults) {
   return result;
 }
 
-// ─── Shell ──────────────────────────────────────────────────────────────────
-
+/**
+ * Runs a shell command.
+ * @param {string} cmd - Command to run.
+ * @param {Object} [cfg={}] - Configuration.
+ * @param {Object} [env=process.env] - Environment variables.
+ * @returns {Promise<string>} Command output.
+ */
 async function runShell(cmd, cfg = {}, env = process.env) {
   const timeoutMs = Number.isFinite(SHELL_TIMEOUT_MS) && SHELL_TIMEOUT_MS > 0 ? SHELL_TIMEOUT_MS : 30000;
   return new Promise(resolve => {
@@ -623,8 +721,11 @@ async function runShell(cmd, cfg = {}, env = process.env) {
   });
 }
 
-// ─── HTTP & Search ──────────────────────────────────────────────────────────
-
+/**
+ * Makes an HTTP request.
+ * @param {Object} options - Request options.
+ * @returns {Promise<string>} Response details.
+ */
 async function httpRequest({ url, method = "GET", headers = {}, body = "", timeout_ms = 15000 }) {
   if (!url) return "❌ Error: url required";
   const controller = new AbortController();
@@ -650,6 +751,11 @@ async function httpRequest({ url, method = "GET", headers = {}, body = "", timeo
   } finally { clearTimeout(t); }
 }
 
+/**
+ * Performs a web search.
+ * @param {Object} options - Search options.
+ * @returns {Promise<string>} Search results JSON.
+ */
 async function webSearch({ query, max_results = 5 }) {
   if (!query) return "❌ Error: query required";
   const url = `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
@@ -671,8 +777,13 @@ async function webSearch({ query, max_results = 5 }) {
   } catch (e) { return `❌ Search error: ${e.message}`; }
 }
 
-// ─── Tool Chain ─────────────────────────────────────────────────────────────
-
+/**
+ * Executes a sequence of tools.
+ * @param {Array<Object>} steps - Tool steps.
+ * @param {Object} cfg - Configuration.
+ * @param {Object} env - Environment.
+ * @returns {Promise<string>} Sequence results JSON.
+ */
 async function toolChain(steps, cfg, env) {
   if (!Array.isArray(steps) || steps.length === 0) return "❌ Error: steps empty";
   const outputs = [];
@@ -684,8 +795,14 @@ async function toolChain(steps, cfg, env) {
   return JSON.stringify(outputs, null, 2);
 }
 
-// ─── Tool Router ────────────────────────────────────────────────────────────
-
+/**
+ * Main tool execution router.
+ * @param {string} name - Tool name.
+ * @param {Object} args - Tool arguments.
+ * @param {Object} cfg - Configuration.
+ * @param {Object} [env] - Environment.
+ * @returns {Promise<string>} Tool output.
+ */
 async function executeTool(name, args, cfg, env = process.env) {
   const cleanName = (name || "").replace(/^proxy_/, "");
   switch (cleanName) {
@@ -701,7 +818,6 @@ async function executeTool(name, args, cfg, env = process.env) {
     case "http_request":  return await httpRequest(args);
     case "web_search":    return await webSearch(args);
     case "tool_chain":    return await toolChain(args.steps, cfg, env);
-    // ─── v3: New tools ──────────────────────────────────────────────────
     case "delegate_task": {
       const { delegateTask } = await import("./agents/subagent.js");
       return await delegateTask(args, cfg);
@@ -734,8 +850,10 @@ async function executeTool(name, args, cfg, env = process.env) {
   }
 }
 
-// ─── Extended Tool Definitions (v3) ─────────────────────────────────────────
-
+/**
+ * Extended tool definitions (v3 agents/git/ci).
+ * @type {Array<Object>}
+ */
 const EXTENDED_TOOLS = [
   {
     type: "function",
@@ -828,8 +946,8 @@ const EXTENDED_TOOLS = [
   },
 ];
 
+/** All available tools combined. */
 const ALL_TOOLS = [...TOOLS, ...EXTENDED_TOOLS];
-
 
 export {
   TOOLS, ALL_TOOLS, EXTENDED_TOOLS,

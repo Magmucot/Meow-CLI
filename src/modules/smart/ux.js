@@ -195,6 +195,5 @@ export {
   LivePreview, getLivePreview,
   PairProgrammer, PairMode, getPairProgrammer,
   completeCommand, completeFilePath, complete,
-  colorDiff, progressBar,
   ALL_COMMANDS,
 };

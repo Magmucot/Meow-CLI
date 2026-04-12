@@ -18,6 +18,12 @@ import {
   handleTools
 } from "../../core.js";
 
+/**
+ * Handles the /img command for analyzing images from local paths or URLs.
+ * @param {Object} ctx - CLI context.
+ * @param {string} input - User input.
+ * @returns {Promise<Object|null>}
+ */
 const handleImages = async (ctx, input) => {
   if (!input.startsWith("/img ")) return null;
 

@@ -241,7 +241,7 @@ function migrateLegacyData() {
 }
 
 export {
-  loadJson, saveJson, normalizeAssistantProfile, loadAssistentsFromDir,
+  loadJson, saveJson, normalizeAssistantProfile, loadAssistantsFromDir,
   saveAssistantProfile, loadConfig, saveConfig, loadHistoryState,
   loadPins, savePins, applyVacuum, saveHistoryState,
   loadUndoState, saveUndoState, migrateLegacyData

@@ -1,15 +1,21 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// tool-handler.js — Meow CLI Tool Handler (with permissions + checkpoints + security)
-// ═══════════════════════════════════════════════════════════════════════════
-
 import { TOOL_CLR, C, MUTED, TEXT_DIM, ERROR, WARNING, COLS, log } from "./ui.js";
 import { executeTool } from "./tools.js";
 import { askPermission, getPermissionStore } from "./permissions.js";
 
+/**
+ * Set of tools that do not modify the file system or environment.
+ * @type {Set<string>}
+ */
 const READONLY_TOOLS = new Set(["list_dir", "read_file", "grep_search", "git_diff", "git_log", "git_status"]);
 
-// ─── Tool Handler ───────────────────────────────────────────────────────────
-
+/**
+ * Orchestrates tool execution, including permission checks, sandboxing, and auditing.
+ * @param {Object} msg - The assistant message containing tool calls.
+ * @param {Array<Object>} messages - Conversation history to append results to.
+ * @param {Object} cfg - Application configuration.
+ * @param {Object|null} [checkpointMgr=null] - Optional manager for file system checkpoints.
+ * @returns {Promise<boolean>} True if tool calls were processed.
+ */
 async function handleTools(msg, messages, cfg, checkpointMgr = null) {
   if (!msg.tool_calls || msg.tool_calls.length === 0) return false;
 
@@ -17,7 +23,6 @@ async function handleTools(msg, messages, cfg, checkpointMgr = null) {
   const count = msg.tool_calls.length;
   const permStore = getPermissionStore();
 
-  // Lazy-load security modules
   let sandbox = null;
   let audit = null;
   try {
@@ -26,7 +31,6 @@ async function handleTools(msg, messages, cfg, checkpointMgr = null) {
     audit = sec.getAuditLogger();
   } catch {}
 
-  // Lazy-load memory hooks
   let memHooks = null;
   try {
     const mem = await import("./memory/rag.js");
@@ -36,7 +40,6 @@ async function handleTools(msg, messages, cfg, checkpointMgr = null) {
   console.log("");
   console.log(`  ${TOOL_CLR}┃${C.reset} ${TOOL_CLR}${C.bold}Tools${C.reset} ${MUTED}(${count} call${count > 1 ? "s" : ""})${C.reset}`);
 
-  // Separate read-only and mutating calls for parallel execution
   const readCalls = [];
   const writeCalls = [];
   for (const call of msg.tool_calls) {
@@ -45,7 +48,6 @@ async function handleTools(msg, messages, cfg, checkpointMgr = null) {
     else writeCalls.push(call);
   }
 
-  // Execute read-only calls in parallel
   if (readCalls.length > 1) {
     const readResults = await Promise.all(readCalls.map(async (call) => {
       const name = call.function.name;
@@ -56,7 +58,6 @@ async function handleTools(msg, messages, cfg, checkpointMgr = null) {
       const short = argsStr.length > 60 ? argsStr.slice(0, 57) + "…" : argsStr;
       console.log(`  ${TOOL_CLR}┃${C.reset} ${TOOL_CLR}${C.bold}${name}${C.reset} ${MUTED}${short}${C.reset}`);
 
-      // Sandbox validation for read-only tools too
       if (sandbox) {
         const check = sandbox.validate(name, args);
         if (!check.allowed) {
@@ -83,12 +84,10 @@ async function handleTools(msg, messages, cfg, checkpointMgr = null) {
       messages.push({ role: "tool", tool_call_id: call.id, content: result || "" });
     }
   } else {
-    // Single read call — process normally below with write calls
     writeCalls.unshift(...readCalls);
     readCalls.length = 0;
   }
 
-  // Execute mutating calls sequentially
   for (let i = 0; i < writeCalls.length; i++) {
     const call = writeCalls[i];
     let name = call.function.name;
@@ -100,7 +99,6 @@ async function handleTools(msg, messages, cfg, checkpointMgr = null) {
     const counter = count > 1 ? `${MUTED}[${readCalls.length + i + 1}/${count}]${C.reset} ` : "";
     console.log(`  ${TOOL_CLR}┃${C.reset} ${counter}${TOOL_CLR}${C.bold}${name}${C.reset} ${MUTED}${short}${C.reset}`);
 
-    // Sandbox validation
     if (sandbox) {
       const check = sandbox.validate(name, args);
       if (!check.allowed) {
@@ -112,7 +110,6 @@ async function handleTools(msg, messages, cfg, checkpointMgr = null) {
       }
     }
 
-    // Permission check
     const allowed = await askPermission(name, args, permStore, cfg.auto_yes);
     if (!allowed) {
       const result = `❌ Permission denied for ${name}`;
@@ -124,7 +121,6 @@ async function handleTools(msg, messages, cfg, checkpointMgr = null) {
 
     if (audit) audit.logPermission(name, "allowed");
 
-    // Create checkpoint before file-modifying operations
     if (checkpointMgr && (name === "write_file" || name === "patch_file") && args.path) {
       checkpointMgr.create(`${name}: ${args.path}`, [args.path]);
     }
@@ -135,7 +131,6 @@ async function handleTools(msg, messages, cfg, checkpointMgr = null) {
     if (audit) audit.logToolCall(name, args, result);
     if (memHooks) memHooks.afterToolCall(name, args, result || "");
 
-    // Show compact result
     if (result) {
       const lines = result.split("\n").slice(0, 5);
       for (const line of lines) {
@@ -155,6 +150,5 @@ async function handleTools(msg, messages, cfg, checkpointMgr = null) {
 
   return true;
 }
-
 
 export { handleTools };

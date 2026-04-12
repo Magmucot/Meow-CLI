@@ -1,13 +1,11 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// compact.js — Meow CLI Context Compaction
-// Manual and auto context compression with token estimation
-// ═══════════════════════════════════════════════════════════════════════════
-
 import { callApi } from "./api.js";
 import { log, C, ACCENT, MUTED, TEXT, TEXT_DIM, SUCCESS, WARNING } from "./ui.js";
 
-// ─── Token Estimation ───────────────────────────────────────────────────────
-
+/**
+ * Estimates the number of tokens in a list of messages based on character length.
+ * @param {Array<Object>} messages - The messages to estimate.
+ * @returns {number} Estimated token count.
+ */
 function estimateTokens(messages) {
   let total = 0;
   for (const msg of messages) {
@@ -23,8 +21,13 @@ function estimateTokens(messages) {
   return total;
 }
 
-// ─── Compact Messages ───────────────────────────────────────────────────────
-
+/**
+ * Heuristically compacts conversation messages to reduce token usage.
+ * @param {Array<Object>} messages - Current message history.
+ * @param {Object} cfg - Configuration object.
+ * @param {number} [keepRecent=4] - Number of recent messages to keep intact.
+ * @returns {Promise<Object>} Compaction result with new messages and stats.
+ */
 async function compactMessages(messages, cfg, keepRecent = 4) {
   if (messages.length < 6) {
     return { messages, compressed: false, reason: "Too few messages to compact" };
@@ -41,7 +44,6 @@ async function compactMessages(messages, cfg, keepRecent = 4) {
 
   const beforeTokens = estimateTokens(messages);
 
-  // Build summary of old messages
   const summaryParts = [];
   let toolResults = 0;
   let filesMentioned = new Set();
@@ -50,13 +52,11 @@ async function compactMessages(messages, cfg, keepRecent = 4) {
     const content = typeof msg.content === "string" ? msg.content : "";
 
     if (msg.role === "assistant" && content) {
-      // Keep first 200 chars of assistant responses
       summaryParts.push(`Assistant: ${content.slice(0, 200)}`);
     }
 
     if (msg.role === "tool") {
       toolResults++;
-      // Extract file paths from tool results
       const paths = content.match(/(?:\/[\w.-]+)+\.\w+/g) || [];
       paths.forEach(p => filesMentioned.add(p));
     }
@@ -108,8 +108,13 @@ async function compactMessages(messages, cfg, keepRecent = 4) {
   };
 }
 
-// ─── AI-powered compact (uses the model to summarize) ───────────────────────
-
+/**
+ * Uses an AI model to summarize old messages for context compaction.
+ * @param {Array<Object>} messages - Current message history.
+ * @param {Object} cfg - Configuration object.
+ * @param {number} [keepRecent=4] - Number of recent messages to keep intact.
+ * @returns {Promise<Object>} Compaction result with new messages and stats.
+ */
 async function compactWithAI(messages, cfg, keepRecent = 4) {
   if (messages.length < 8) {
     return compactMessages(messages, cfg, keepRecent);
@@ -121,7 +126,6 @@ async function compactWithAI(messages, cfg, keepRecent = 4) {
   const oldMessages = messages.slice(1, -recentCount);
   const beforeTokens = estimateTokens(messages);
 
-  // Ask the model to summarize
   try {
     const summaryPrompt = [
       { role: "system", content: "You are a conversation summarizer. Summarize the following conversation history into a concise summary that preserves all important context: decisions made, files modified, code written, errors encountered, and current state. Be brief but complete. Return ONLY the summary." },
@@ -155,12 +159,13 @@ async function compactWithAI(messages, cfg, keepRecent = 4) {
     log.dim(`AI compact failed, falling back: ${e.message}`);
   }
 
-  // Fallback to simple compact
   return compactMessages(messages, cfg, keepRecent);
 }
 
-// ─── Print compact result ───────────────────────────────────────────────────
-
+/**
+ * Prints the result of a compaction operation to the terminal.
+ * @param {Object} result - Result from compactMessages or compactWithAI.
+ */
 function printCompactResult(result) {
   if (!result.compressed) {
     log.warn(result.reason || "Nothing to compact");
@@ -174,8 +179,12 @@ function printCompactResult(result) {
   console.log("");
 }
 
-// ─── Auto-compact check ─────────────────────────────────────────────────────
-
+/**
+ * Checks if the current conversation exceeds token thresholds and should be compacted.
+ * @param {Array<Object>} messages - Current message history.
+ * @param {number} [warningThreshold=80000] - Token count threshold for auto-compaction.
+ * @returns {Object} Object indicating if compaction is needed.
+ */
 function shouldAutoCompact(messages, warningThreshold = 80000) {
   const tokens = estimateTokens(messages);
   return {
@@ -185,7 +194,6 @@ function shouldAutoCompact(messages, warningThreshold = 80000) {
     percentage: Math.round((tokens / warningThreshold) * 100),
   };
 }
-
 
 export {
   estimateTokens,

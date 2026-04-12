@@ -27,8 +27,9 @@ const readMultilineInput = (promptTitle) => new Promise(resolve => {
       process.exit(0);
     }
 
-    // Submit: Ctrl+D or Ctrl+Enter (if supported) or just Enter for commands
-    if ((key.ctrl && key.name === 'd') || (key.name === 'return' && (buffer.startsWith('/') || key.ctrl))) {
+    // Submit: Ctrl+D, Ctrl+Enter, or Shift+Enter
+    if ((key.ctrl && key.name === 'd') || 
+        (key.name === 'return' && (buffer.startsWith('/') || key.ctrl || key.shift))) {
       process.stdout.write("\n" + MUTED("└") + "\n");
       cleanup();
       resolve(buffer.trim());

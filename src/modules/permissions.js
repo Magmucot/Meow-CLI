@@ -1,42 +1,41 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// permissions.js — Meow CLI Permission System (Claude Code–grade)
-// 3-level: ask / allow / deny with pattern matching
-// ═══════════════════════════════════════════════════════════════════════════
-
 import fs from "fs";
 import path from "path";
 import { PERM_FILE } from "./config.js";
 import { log, C, SUCCESS, ERROR, WARNING, MUTED, TEXT, TEXT_DIM, ACCENT, box, COLS } from "./ui.js";
 
-// ─── Permission Levels ──────────────────────────────────────────────────────
-
+/**
+ * Permission levels for tool execution.
+ * @enum {string}
+ */
 const LEVEL = {
   ASK:           "ask",
   ALLOW:         "allow",
   DENY:          "deny",
-  SESSION_ALLOW: "session_allow", // Allowed for the duration of the process
+  SESSION_ALLOW: "session_allow",
 };
 
-// Tools that are always safe (read-only, no side effects)
+/** @type {Set<string>} Set of tools that are always considered safe to run */
 const SAFE_TOOLS = new Set(["list_dir", "read_file", "grep_search", "ask_user", "confirm", "choose", "git_status", "git_log", "git_diff"]);
 
-// Tools that require explicit permission
+/** @type {Set<string>} Set of tools that require explicit user permission */
 const DANGEROUS_TOOLS = new Set(["run_shell", "write_file", "patch_file", "http_request", "web_search", "git_commit", "git_branch", "ci_pipeline"]);
 
-// ─── Pattern Matching ───────────────────────────────────────────────────────
-
+/**
+ * Matches a tool name against a pattern.
+ * @param {string} pattern - The pattern to match (e.g., "write_file:*").
+ * @param {string} value - The tool name.
+ * @returns {boolean}
+ */
 function matchPattern(pattern, value) {
   if (pattern === "*") return true;
   if (pattern === value) return true;
 
-  // tool:path pattern  e.g. "write_file:src/*.js"
   if (pattern.includes(":")) {
     const [pTool, pPath] = pattern.split(":", 2);
     if (pTool !== "*" && pTool !== value) return false;
-    return true; // tool matched, path checked separately
+    return true;
   }
 
-  // glob-style: "write_file*" matches "write_file"
   if (pattern.endsWith("*")) {
     return value.startsWith(pattern.slice(0, -1));
   }
@@ -44,11 +43,16 @@ function matchPattern(pattern, value) {
   return false;
 }
 
+/**
+ * Matches a file path against a glob-like pattern.
+ * @param {string} pattern - The glob pattern.
+ * @param {string} filePath - The path to check.
+ * @returns {boolean}
+ */
 function matchPathPattern(pattern, filePath) {
   if (!pattern || !filePath) return true;
   if (pattern === "*") return true;
 
-  // Simple glob: "src/*.js"
   const regexStr = "^" + pattern
     .replace(/\./g, "\\.")
     .replace(/\*\*/g, "§§")
@@ -63,15 +67,17 @@ function matchPathPattern(pattern, filePath) {
   }
 }
 
-// ─── Permission Store ───────────────────────────────────────────────────────
-
+/**
+ * Manages persistent and session-level tool permissions.
+ */
 class PermissionStore {
   constructor() {
     this.rules = [];
-    this.sessionOverrides = new Map(); // transient per-session
+    this.sessionOverrides = new Map();
     this._load();
   }
 
+  /** @private */
   _load() {
     try {
       if (fs.existsSync(PERM_FILE)) {
@@ -83,6 +89,7 @@ class PermissionStore {
     }
   }
 
+  /** @private */
   _save() {
     try {
       fs.mkdirSync(path.dirname(PERM_FILE), { recursive: true });
@@ -92,9 +99,13 @@ class PermissionStore {
     }
   }
 
-  // Add a rule
+  /**
+   * Adds a persistent permission rule.
+   * @param {string} tool - Tool name or "*".
+   * @param {string} level - Permission level.
+   * @param {string|null} [pathPattern=null] - Optional file path pattern.
+   */
   addRule(tool, level, pathPattern = null) {
-    // Remove existing rule for same tool+path
     this.rules = this.rules.filter(r =>
       !(r.tool === tool && r.path === pathPattern)
     );
@@ -107,7 +118,12 @@ class PermissionStore {
     this._save();
   }
 
-  // Remove a rule
+  /**
+   * Removes a persistent permission rule.
+   * @param {string} tool - Tool name.
+   * @param {string|null} [pathPattern=null] - Optional file path pattern.
+   * @returns {boolean} True if a rule was removed.
+   */
   removeRule(tool, pathPattern = null) {
     const before = this.rules.length;
     this.rules = this.rules.filter(r =>
@@ -117,20 +133,24 @@ class PermissionStore {
     return before !== this.rules.length;
   }
 
-  // Reset all rules
+  /**
+   * Resets all persistent and session rules.
+   */
   resetAll() {
     this.rules = [];
     this.sessionOverrides.clear();
     this._save();
   }
 
-  // Check permission for a tool call
+  /**
+   * Checks the permission level for a tool call.
+   * @param {string} toolName - Name of the tool.
+   * @param {Object} [args={}] - Arguments passed to the tool.
+   * @returns {string} The permission level (allow, deny, ask, etc).
+   */
   check(toolName, args = {}) {
-    // Safe tools always allowed
     if (SAFE_TOOLS.has(toolName)) return LEVEL.ALLOW;
 
-    // Check session overrides first (most recent)
-    // We check tool-only session override first
     if (this.sessionOverrides.has(toolName)) {
       return this.sessionOverrides.get(toolName);
     }
@@ -141,9 +161,6 @@ class PermissionStore {
       return this.sessionOverrides.get(sessionKey);
     }
 
-    // Check persistent rules (most specific first)
-
-    // 1. Exact tool+path match
     for (const rule of this.rules) {
       if (rule.tool === toolName && rule.path && filePath) {
         if (matchPathPattern(rule.path, filePath)) {
@@ -152,36 +169,46 @@ class PermissionStore {
       }
     }
 
-    // 2. Tool-only match
     for (const rule of this.rules) {
       if (rule.tool === toolName && !rule.path) {
         return rule.level;
       }
     }
 
-    // 3. Wildcard match
     for (const rule of this.rules) {
       if (rule.tool === "*") {
         return rule.level;
       }
     }
 
-    // Default: ask for dangerous tools
     return DANGEROUS_TOOLS.has(toolName) ? LEVEL.ASK : LEVEL.ALLOW;
   }
 
-  // Remember a session-level decision
+  /**
+   * Remembers a session-level decision for a specific tool and path.
+   * @param {string} toolName - Tool name.
+   * @param {Object} args - Tool arguments.
+   * @param {string} level - Permission level.
+   */
   rememberSession(toolName, args, level) {
     const filePath = args.path || args.cmd || args.url || args.file || "*";
     const sessionKey = `${toolName}:${filePath}`;
     this.sessionOverrides.set(sessionKey, level);
   }
 
+  /**
+   * Remembers a session-level decision for a tool regardless of path.
+   * @param {string} toolName - Tool name.
+   * @param {string} level - Permission level.
+   */
   rememberToolSession(toolName, level) {
     this.sessionOverrides.set(toolName, level);
   }
 
-  // Get all rules for display
+  /**
+   * Returns all persistent rules.
+   * @returns {Array<Object>}
+   */
   listRules() {
     return [...this.rules].sort((a, b) => {
       if (a.tool !== b.tool) return a.tool.localeCompare(b.tool);
@@ -190,8 +217,14 @@ class PermissionStore {
   }
 }
 
-// ─── Permission Dialog ──────────────────────────────────────────────────────
-
+/**
+ * Prompts the user for permission to execute a tool.
+ * @param {string} toolName - Name of the tool.
+ * @param {Object} args - Tool arguments.
+ * @param {PermissionStore} store - The permission store instance.
+ * @param {boolean} [autoYes=false] - If true, automatically allow (except for explicit denies).
+ * @returns {Promise<boolean>} True if allowed.
+ */
 async function askPermission(toolName, args, store, autoYes = false) {
   const level = store.check(toolName, args);
 
@@ -201,10 +234,8 @@ async function askPermission(toolName, args, store, autoYes = false) {
     return false;
   }
 
-  // Auto-yes mode uses stored permissions, defaults to allow
   if (autoYes) return true;
 
-  // Show permission dialog
   const detail = formatToolDetail(toolName, args);
 
   return new Promise(resolve => {
@@ -214,7 +245,7 @@ async function askPermission(toolName, args, store, autoYes = false) {
       { title: "⚠ Permission required", color: WARNING, width: Math.min(COLS - 2, 70) }
     ));
     console.log("");
-    console.log(`  ${TEXT}Options:${C.reset}`);
+    console.log(`  ${TEXT}Options:`);
     console.log(`    ${SUCCESS}y${C.reset}  ${TEXT_DIM}Allow once${C.reset}`);
     console.log(`    ${SUCCESS}s${C.reset}  ${TEXT_DIM}Allow for this session${C.reset}`);
     console.log(`    ${SUCCESS}a${C.reset}  ${TEXT_DIM}Always allow this tool${C.reset}`);
@@ -264,6 +295,13 @@ async function askPermission(toolName, args, store, autoYes = false) {
   });
 }
 
+/**
+ * Formats tool arguments for the permission dialog.
+ * @param {string} toolName - Tool name.
+ * @param {Object} args - Tool arguments.
+ * @returns {string} Formatted detail.
+ * @private
+ */
 function formatToolDetail(toolName, args) {
   switch (toolName) {
     case "write_file":
@@ -282,14 +320,15 @@ function formatToolDetail(toolName, args) {
   }
 }
 
-// ─── Singleton ──────────────────────────────────────────────────────────────
-
 let _store = null;
+/**
+ * Singleton accessor for the PermissionStore.
+ * @returns {PermissionStore}
+ */
 function getPermissionStore() {
   if (!_store) _store = new PermissionStore();
   return _store;
 }
-
 
 export {
   LEVEL,

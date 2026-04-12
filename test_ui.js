@@ -1,10 +1,10 @@
 
-import chalk from 'chalk';
+import { Chalk } from 'chalk';
 
-const c = new chalk.Instance({level: 3});
-console.log('c.red.open:', c.red.open);
+const c = new Chalk({level: 3});
+console.log('c.red.open:', JSON.stringify(c.red.open));
 const fn = c.hex("#6CB4DC");
-console.log('fn.open:', fn.open);
+console.log('fn.open:', JSON.stringify(fn.open));
 
 const color = (hex) => {
   const fn = chalk.hex(hex);

@@ -15,7 +15,7 @@ const COMMANDS = [
 
 const readMultilineInput = (promptTitle) => new Promise(resolve => {
   const promptPrefix = `${MUTED("│")}  `;
-  console.log(`\n${ACCENT("◇")}  ${TEXT_DIM(promptTitle)}`);
+  console.log(`\n${ACCENT("◇")}  ${TEXT_DIM(promptTitle)} ${MUTED("(Enter: newline, Shift+Enter: send)")}`);
   process.stdout.write(promptPrefix);
 
   let buffer = "";

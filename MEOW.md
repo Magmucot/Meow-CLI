@@ -30,6 +30,8 @@ src/
     ├── ui.js              # Theme, spinner, box drawing, markdown
     ├── utils.js           # Helpers
     └── commands/          # Slash command handlers
+        ├── init.js        # /init — project indexing (project.meow + MEOW.md)
+        └── ...            # Other command handlers
 ```
 
 ## Coding Standards

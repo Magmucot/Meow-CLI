@@ -222,7 +222,8 @@ async function suggestNextTasks(cfg, analyzer, options = {}) {
   const git = new GitAnalyzer();
   const intel = new CodeIntelligence();
   
-  const structure = listDir(process.cwd(), true).split("\n").slice(0, 100);
+  const rawStructure = listDir(process.cwd(), true);
+  const structure = rawStructure.startsWith("❌") ? [] : rawStructure.split("\n").filter(l => l.trim()).slice(0, 100);
   const gates = analyzer.runAllGates();
   const failedGates = gates.filter(g => !g.passed && !g.skipped);
   

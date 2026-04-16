@@ -162,6 +162,11 @@ class MemoryStore {
     const { maxResults = MAX_SEARCH_RESULTS, project = null,
       type = null, crossProject = false, minScore = SIMILARITY_THRESHOLD } = options;
 
+    const cacheKey = JSON.stringify({ query, options });
+    if (this._cache.has(cacheKey)) {
+      return this._cache.get(cacheKey);
+    }
+
     const queryTokens = tokenize(query);
     const queryTf = termFrequency(queryTokens);
 

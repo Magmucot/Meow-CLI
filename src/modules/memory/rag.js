@@ -293,6 +293,7 @@ class MemoryStore {
 
   clear(project = null) {
     this.load();
+    this._clearCache();
     if (project) {
       this.memories = this.memories.filter(m => m.metadata.project !== project);
       delete this.projectIndex[project];

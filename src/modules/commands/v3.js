@@ -16,6 +16,7 @@ import {
 const handleLead = async (ctx, input) => {
   if (!input.startsWith("/lead")) return null;
 
+  const parts = input.split(/\s+/);
   const rest = input.slice(5).trim();
 
   if (!ctx.cfg.api_key) {
@@ -27,11 +28,28 @@ const handleLead = async (ctx, input) => {
   const session = new LeadDevSession(ctx.cfg, [...ctx.messages], ctx.saveState);
   ctx.activeAutopilot = session;
 
-  const isAuto = rest.startsWith("auto") || rest.startsWith("--auto");
-  const context = rest.replace(/^auto\s*/, "").replace(/^--auto\s*/, "").trim();
+  // Advanced parsing
+  const options = {
+    auto: parts.includes("auto") || parts.includes("--auto"),
+    plan: parts.includes("plan") || parts.includes("--plan") || parts.includes("--dry-run"),
+    focus: "",
+    tasks: 0
+  };
+
+  const focusIdx = parts.findIndex(p => p === "--focus");
+  if (focusIdx !== -1 && parts[focusIdx + 1]) options.focus = parts[focusIdx + 1];
+
+  const tasksIdx = parts.findIndex(p => p === "--tasks");
+  if (tasksIdx !== -1 && parts[tasksIdx + 1]) options.tasks = parseInt(parts[tasksIdx + 1], 10);
+
+  // Clean context (remove flags)
+  const context = parts.slice(1).filter(p => 
+    !["auto", "--auto", "plan", "--plan", "--dry-run", "--focus", "--tasks"].includes(p) &&
+    p !== options.focus && p !== String(options.tasks)
+  ).join(" ");
 
   try {
-    await session.run(context, { auto: isAuto });
+    await session.run(context, options);
   } catch (e) {
     log.err(`Lead dev error: ${e.message}`);
   }

@@ -7,7 +7,7 @@ import { C, MUTED, ACCENT, TEXT, TEXT_DIM, SUCCESS, AI_GRADIENT } from "./ui.js"
  */
 const COMMANDS = [
   // Most common first — these appear first in tab-complete
-  "/help", "/clear", "/exit", "/stats", "/config",
+  "/help", "?", "/clear", "/exit", "/stats", "/config",
   "/ap", "/autopilot",
   "/model", "/profile", "/temp", "/key", "/url", "/lang",
   // Chat

@@ -6,15 +6,41 @@ import { C, MUTED, ACCENT, TEXT, TEXT_DIM, SUCCESS, AI_GRADIENT } from "./ui.js"
  * @type {Array<string>}
  */
 const COMMANDS = [
-  "/help", "/clear", "/exit", "/stats", "/config", "/model", "/profile",
+  // Most common first — these appear first in tab-complete
+  "/help", "/clear", "/exit", "/stats", "/config",
+  "/ap", "/autopilot",
+  "/model", "/profile", "/temp", "/key", "/url", "/lang",
+  // Chat
   "/chat list", "/chat new", "/chat use", "/chat delete",
-  "/ap", "/autopilot", "/ap-config", "/ap-limit", "/ap-errors",
-  "/img", "/list", "/read", "/shell", "/undo", "/export", "/import",
-  "/template", "/pins", "/pin", "/vacuum", "/alias", "/plugin",
-  "/permissions", "/perm allow", "/perm deny", "/context", "/context edit", "/context reload",
-  "/rewind", "/rewind --list", "/session list", "/session load", "/compact", "/compact --ai",
-  "/cost", "/cost total", "/lead", "/delegate", "/memory", "/pair", "/ci", "/audit",
-  "/incognito", "/routing", "/preview"
+  "/reset", "/compact", "/compact --ai",
+  // Autopilot
+  "/ap-config", "/ap-limit", "/ap-errors", "/trigger",
+  // Agents
+  "/lead", "/lead auto", "/delegate", "/pair",
+  "/ci status", "/ci generate", "/ci heal",
+  // Memory
+  "/memory stats", "/memory search", "/memory prefs", "/memory clear",
+  "/routing", "/routing on", "/routing off",
+  // Tools
+  "/img", "/list", "/read", "/shell",
+  // Security
+  "/permissions", "/perm allow", "/perm deny",
+  "/context", "/context edit", "/context reload",
+  "/audit", "/incognito on", "/incognito off",
+  // History
+  "/rewind", "/rewind --list",
+  "/session list", "/session load",
+  "/cost", "/cost total",
+  "/export", "/import", "/undo",
+  // Settings
+  "/git on", "/git off", "/git prefix", "/git ai",
+  "/assistant", "/preview start", "/preview stop",
+  // Other
+  "/init", "/init --force",
+  "/pins", "/pin",
+  "/plugin list", "/plugin enable", "/plugin disable",
+  "/template", "/vacuum", "/alias",
+  "/saveconfig",
 ];
 
 /**

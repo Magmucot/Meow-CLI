@@ -19,7 +19,7 @@ Meow CLI provides a wide array of commands to manage your AI sessions, project c
 | `/ap-config` | View autopilot configuration |
 | `/ap-limit <N>` | Set max iterations for autopilot |
 | `/ap-errors <N>` | Set max allowed errors for autopilot |
-| `/lead [auto] [context]` | AI Lead Developer mode (auto: no prompts) |
+| `/lead [--auto] [--plan] [--focus <area>] [--tasks N] [context]` | AI Lead Developer mode (deep analysis + parallel execution) |
 | `/delegate <task>` | Spawn parallel sub-agents for a specific task |
 
 ## 🧠 Memory & Intelligence

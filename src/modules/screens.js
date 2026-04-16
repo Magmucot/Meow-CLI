@@ -32,29 +32,225 @@ function banner(cfg, currentChat, historyLen, pinsCount = 0) {
   console.log(`\n  ${MUTED(t(cfg, "type_help"))}\n`);
 }
 
-function printHelp(cfg) {
-  log.br();
-  const sections = [
-    { title: t(cfg, "help_title_chat"), items: [["/clear", t(cfg, "cmd_clear")], ["/reset", "Reset chat context"], ["/chat list", t(cfg, "cmd_chat_list")], ["/chat new [name]", t(cfg, "cmd_chat_new")], ["/chat use <name>", t(cfg, "cmd_chat_use")], ["/chat delete <name>", t(cfg, "cmd_chat_delete")]] },
-    { title: t(cfg, "help_title_autopilot"), items: [["/autopilot <task>", t(cfg, "cmd_autopilot")], ["/ap <task>", t(cfg, "cmd_autopilot_short")], ["/ap-config", t(cfg, "cmd_ap_config")], ["/ap-limit <N>", t(cfg, "cmd_ap_limit")], ["/ap-errors <N>", t(cfg, "cmd_ap_errors")], ["/trigger <cmd|off>", t(cfg, "cmd_trigger")], ["Ctrl+C", t(cfg, "cmd_ctrl_c")]] },
-    { title: t(cfg, "help_title_images"), items: [["/img <path> [text]", t(cfg, "cmd_img_path")], ["/img <url> [text]", t(cfg, "cmd_img_url")], ["{img:path} text", t(cfg, "cmd_img_inline")]] },
-    { title: t(cfg, "help_title_tools"), items: [["/list <path>", t(cfg, "cmd_list")], ["/read <file>", t(cfg, "cmd_read")], ["/shell <cmd>", t(cfg, "cmd_shell")]] },
-    { title: "🔒 Security & Context", items: [["/permissions", "Manage tool permissions"], ["/perm allow <tool>", "Always allow a tool"], ["/perm deny <tool>", "Always deny a tool"], ["/context", "Show project context (MEOW.md)"], ["/context edit", "Edit project MEOW.md"], ["/context reload", "Reload context into prompt"], ["/audit", "Show audit log"], ["/incognito on|off", "Incognito mode (no data persists)"]] },
-    { title: "🔀 Agents & Automation", items: [["/lead [context]", "AI Lead Developer — continuous improvement"], ["/lead auto [context]", "Auto-mode: no prompts, picks tasks itself"], ["/delegate <task>", "Delegate task to parallel sub-agent"], ["/pair <mode>", "Pair programming (verbose/balanced/silent/off)"], ["/ci status", "Show CI/CD workflows"], ["/ci generate <desc>", "Generate GitHub Actions workflow"], ["/ci heal", "Self-heal failing tests"]] },
-    { title: "🧠 Memory & Intelligence", items: [["/memory stats", "Show memory statistics"], ["/memory search <q>", "Search project memory"], ["/memory prefs", "Show learned preferences"], ["/memory clear", "Clear project memory"], ["/routing", "Smart model routing config"], ["/routing on|off", "Toggle dynamic model selection"]] },
-    { title: "⏪ History & Sessions", items: [["/rewind [N]", "Undo last N file changes"], ["/rewind --list", "Show checkpoint history"], ["/session list", "Show saved sessions"], ["/session load <id>", "Resume a saved session"], ["/compact", "Compress conversation context"], ["/compact --ai", "AI-powered context compression"], ["/cost", "Show token usage & cost"], ["/cost total", "Show all-time cost"]] },
-    { title: t(cfg, "help_title_settings"), items: [["/model [name]", `${t(cfg, "cmd_model")} ${MUTED("(" + cfg.model + ")")}`], ["/profile [name]", `${t(cfg, "cmd_profile")} ${MUTED("(" + cfg.profile + ")")}`], ["/assistant <cmd>", t(cfg, "cmd_assistant")], ["/temp [0.0-2.0]", t(cfg, "cmd_temp")], ["/key [sk-...]", t(cfg, "cmd_key")], ["/url [http...]", t(cfg, "cmd_url")], ["/config", t(cfg, "cmd_config")], ["/git [on|off]", t(cfg, "cmd_git")], ["/lang <ru|en>", "Switch UI language"], ["/preview start|stop", "Live dev server preview"]] },
-    { title: t(cfg, "help_title_other"), items: [["/undo [N]", t(cfg, "cmd_undo")], ["/export <file>", t(cfg, "cmd_export")], ["/import <file>", t(cfg, "cmd_import")], ["/template <name>", t(cfg, "cmd_template")], ["/pins", t(cfg, "cmd_pins")], ["/pin [index]", t(cfg, "cmd_pin")], ["/vacuum [opts]", t(cfg, "cmd_vacuum")], ["/alias", t(cfg, "cmd_alias")], ["/plugin [cmd]", t(cfg, "cmd_plugin")], ["/stats", t(cfg, "cmd_stats")], ["/help", t(cfg, "cmd_help")], ["/exit", t(cfg, "cmd_exit")]] }
-  ];
-  for (const section of sections) {
-    console.log(`  ${C.bold(AI_GRADIENT(stripAnsi(section.title)))}\n`);
-    table(section.items.map(([cmd, desc]) => [`${TEXT.bold(cmd)}`, `${MUTED(desc)}`]), { indent: 4, colWidths: [24] });
+/**
+ * All help sections — used by printHelp for both overview and filtered views.
+ */
+const HELP_SECTIONS = (cfg) => [
+  {
+    key: "chat",
+    title: "💬 Chat",
+    emoji: "💬",
+    summary: "Manage conversations and context",
+    items: [
+      ["/clear",              "Clear current chat context"],
+      ["/reset",              "Reset chat context"],
+      ["/chat list",          "List all chats"],
+      ["/chat new [name]",    "Create new chat"],
+      ["/chat use <name>",    "Switch to chat"],
+      ["/chat delete <name>", "Delete chat"],
+      ["/compact",            "Compress conversation context"],
+      ["/compact --ai",       "AI-powered context compression"],
+    ]
+  },
+  {
+    key: "autopilot",
+    title: "🤖 Autopilot",
+    emoji: "🤖",
+    summary: "Autonomous AI task execution",
+    items: [
+      ["/autopilot <task>",   "Start autopilot with a task"],
+      ["/ap <task>",          "Short alias for autopilot"],
+      ["/ap-config",          "Show autopilot settings"],
+      ["/ap-limit <N>",       "Set max iterations (default 50)"],
+      ["/ap-errors <N>",      "Set max errors (default 5)"],
+      ["/trigger <cmd|off>",  "Run command on autopilot completion"],
+      ["Ctrl+C",              "Stop autopilot gracefully"],
+    ]
+  },
+  {
+    key: "agents",
+    title: "🔀 Agents",
+    emoji: "🔀",
+    summary: "Multi-agent workflows and pair programming",
+    items: [
+      ["/lead [context]",       "AI Lead Developer — continuous improvement"],
+      ["/lead auto [context]",  "Auto-mode: no prompts, picks tasks itself"],
+      ["/delegate <task>",      "Delegate task to parallel sub-agent"],
+      ["/pair <mode>",          "Pair programming (verbose/balanced/silent/off)"],
+      ["/ci status",            "Show CI/CD workflows"],
+      ["/ci generate <desc>",   "Generate GitHub Actions workflow"],
+      ["/ci heal",              "Self-heal failing tests"],
+    ]
+  },
+  {
+    key: "memory",
+    title: "🧠 Memory",
+    emoji: "🧠",
+    summary: "Project memory and smart model routing",
+    items: [
+      ["/memory stats",       "Show memory statistics"],
+      ["/memory search <q>",  "Search project memory"],
+      ["/memory prefs",       "Show learned preferences"],
+      ["/memory clear",       "Clear project memory"],
+      ["/routing",            "Smart model routing config"],
+      ["/routing on|off",     "Toggle dynamic model selection"],
+    ]
+  },
+  {
+    key: "images",
+    title: "🖼  Images",
+    emoji: "🖼",
+    summary: "Send images to the AI",
+    items: [
+      ["/img <path> [text]",  "Send image with optional question"],
+      ["/img <url> [text]",   "Send image by URL"],
+      ["{img:path} text",     "Inline image in message"],
+    ]
+  },
+  {
+    key: "tools",
+    title: "🔧 Tools",
+    emoji: "🔧",
+    summary: "File system and shell access",
+    items: [
+      ["/list <path>",  "List directory contents"],
+      ["/read <file>",  "Read file contents"],
+      ["/shell <cmd>",  "Execute shell command"],
+    ]
+  },
+  {
+    key: "security",
+    title: "🔒 Security",
+    emoji: "🔒",
+    summary: "Permissions, context and audit",
+    items: [
+      ["/permissions",        "Manage tool permissions"],
+      ["/perm allow <tool>",  "Always allow a tool"],
+      ["/perm deny <tool>",   "Always deny a tool"],
+      ["/context",            "Show project context (MEOW.md)"],
+      ["/context edit",       "Edit project MEOW.md"],
+      ["/context reload",     "Reload context into prompt"],
+      ["/audit",              "Show audit log"],
+      ["/incognito on|off",   "Incognito mode (no data persists)"],
+    ]
+  },
+  {
+    key: "history",
+    title: "⏪ History",
+    emoji: "⏪",
+    summary: "Sessions, undo and cost tracking",
+    items: [
+      ["/rewind [N]",        "Undo last N file changes"],
+      ["/rewind --list",     "Show checkpoint history"],
+      ["/session list",      "Show saved sessions"],
+      ["/session load <id>", "Resume a saved session"],
+      ["/cost",              "Show token usage & cost"],
+      ["/cost total",        "Show all-time cost"],
+      ["/export <file>",     "Export history to JSON"],
+      ["/import <file>",     "Import history from JSON"],
+    ]
+  },
+  {
+    key: "settings",
+    title: "⚙️  Settings",
+    emoji: "⚙️",
+    summary: "Model, profile, API key and config",
+    items: [
+      ["/model [name]",      `Change model ${MUTED("(" + cfg.model + ")")}`],
+      ["/profile [name]",    `Change profile ${MUTED("(" + cfg.profile + ")")}`],
+      ["/assistant <cmd>",   "List/create/use custom assistants"],
+      ["/temp [0.0-2.0]",    "Set temperature"],
+      ["/key [sk-...]",      "Set API key"],
+      ["/url [http...]",     "Set base URL"],
+      ["/lang <ru|en>",      "Switch UI language"],
+      ["/config",            "Show current config"],
+      ["/git [on|off]",      "Toggle git auto-commit"],
+      ["/preview start|stop","Live dev server preview"],
+    ]
+  },
+  {
+    key: "other",
+    title: "📦 Other",
+    emoji: "📦",
+    summary: "Pins, plugins, templates and utilities",
+    items: [
+      ["/init",              "Index project → project.meow + MEOW.md"],
+      ["/pins",              "List pinned messages"],
+      ["/pin [index]",       "Pin last or specific message"],
+      ["/plugin [cmd]",      "Manage plugins"],
+      ["/template <name>",   "Use prompt template"],
+      ["/vacuum [opts]",     "Configure chat vacuum"],
+      ["/alias",             "Show all command aliases"],
+      ["/stats",             "Show status overview"],
+      ["/help [topic]",      "This help (or /help chat, /help settings…)"],
+      ["/exit",              "Quit  (alias: /q)"],
+    ]
+  },
+];
+
+function printHelp(cfg, topic) {
+  const sections = HELP_SECTIONS(cfg);
+
+  // Filtered help: /help chat, /help settings, etc.
+  if (topic) {
+    const q = topic.toLowerCase().trim();
+    const match = sections.find(s =>
+      s.key === q ||
+      s.title.toLowerCase().includes(q) ||
+      s.emoji === q
+    );
+    if (match) {
+      log.br();
+      console.log(`  ${C.bold(AI_GRADIENT(stripAnsi(match.title)))}\n`);
+      table(match.items.map(([cmd, desc]) => [`${TEXT.bold(cmd)}`, `${MUTED(desc)}`]), { indent: 4, colWidths: [26] });
+      log.br();
+      return;
+    }
+    // No match — show overview with hint
+    log.warn(`Unknown topic "${topic}". Showing overview.`);
     log.br();
   }
-  const aliasEntries = Object.entries(cfg.aliases);
+
+  // Compact overview: categories + top commands
+  log.br();
+  console.log(`  ${C.bold(AI_GRADIENT("Commands"))}  ${MUTED("· /help <topic> for details")}\n`);
+
+  // Show categories in a grid
+  const catRows = [];
+  for (let i = 0; i < sections.length; i += 2) {
+    const left  = sections[i];
+    const right = sections[i + 1];
+    const leftStr  = `${TEXT.bold(left.key.padEnd(10))} ${MUTED(left.summary)}`;
+    const rightStr = right ? `${TEXT.bold(right.key.padEnd(10))} ${MUTED(right.summary)}` : "";
+    catRows.push([leftStr, rightStr]);
+  }
+  table(catRows, { indent: 4, colWidths: [42] });
+
+  log.br();
+  console.log(`  ${MUTED("─".repeat(Math.min(COLS - 4, 55)))}`);
+
+  // Quick-reference: most commonly used commands
+  console.log(`\n  ${C.bold(TEXT_DIM("Quick reference"))}\n`);
+  const quickItems = [
+    ["/ap <task>",        "Autonomous task execution (autopilot)"],
+    ["/clear",            "Start fresh conversation"],
+    ["/chat new [name]",  "Create a new chat"],
+    ["/model <name>",     "Switch AI model"],
+    ["/init",             "Index project → MEOW.md + project.meow"],
+    ["/rewind",           "Undo last AI file changes"],
+    ["/cost",             "Show token usage & cost"],
+    ["/q",                "Quit"],
+  ];
+  table(quickItems.map(([cmd, desc]) => [`${ACCENT.bold(cmd)}`, `${TEXT_DIM(desc)}`]), { indent: 4, colWidths: [22] });
+
+  log.br();
+
+  // Aliases hint
+  const aliasEntries = Object.entries(cfg.aliases).slice(0, 8);
   if (aliasEntries.length > 0) {
-    const aliasStr = aliasEntries.map(([a, b]) => `${TEXT_DIM(a)} ${MUTED("→")} ${TEXT_DIM(b)}`).join("  ");
-    console.log(`  ${MUTED("aliases:")} ${aliasStr}\n`);
+    const aliasStr = aliasEntries.map(([a, b]) => `${ACCENT(a)}${MUTED("→")}${TEXT_DIM(b)}`).join(`  `);
+    console.log(`  ${MUTED("aliases:")} ${aliasStr}`);
+    console.log(`  ${MUTED("         /alias to see all")}\n`);
   }
 }
 

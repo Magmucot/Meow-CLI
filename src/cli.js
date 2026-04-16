@@ -172,6 +172,15 @@ async function main() {
     if (commandResult?.exit) break;
     if (commandResult?.handled && !commandResult?.continue) continue;
     if (commandResult?.input !== undefined) input = commandResult.input;
+
+    // "Did you mean?" — detect mistyped slash commands before sending to AI
+    if (input.startsWith("/") && !commandResult?.handled) {
+      const suggestion = suggestCommand(input);
+      if (suggestion) {
+        log.warn(`Unknown command. Did you mean ${ACCENT(suggestion)}?  (or /help to see all commands)`);
+        continue;
+      }
+    }
     const { text: parsedText, images: inlineImages } = parseInlineImages(input);
     const allImages = [...ctx.pendingImages, ...inlineImages];
     ctx.pendingImages = [];

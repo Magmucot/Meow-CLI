@@ -36,25 +36,25 @@ const color = (hex) => {
 };
 
 const style = (fn) => {
-  const wrapper = (text) => text ? fn(text) : getOpen(fn);
-  const proxy = new Proxy(wrapper, {
+  const proxy = new Proxy(fn, {
     get(target, prop) {
       if (prop === 'toString' || prop === Symbol.toPrimitive) {
         return () => getOpen(fn);
       }
       const val = fn[prop];
       if (typeof val === 'function' || (typeof val === 'object' && val !== null)) {
-        // If it is a chalk function/object, wrap it
         return style(val);
       }
       return val;
     },
     apply(target, thisArg, args) {
-      return fn(...args);
+      const result = fn.apply(thisArg, args);
+      if (typeof result === 'function' || (typeof result === 'object' && result !== null)) {
+        return style(result);
+      }
+      return result;
     }
   });
-  wrapper[Symbol.toPrimitive] = () => getOpen(fn);
-  wrapper.toString = () => getOpen(fn);
   return proxy;
 };
 

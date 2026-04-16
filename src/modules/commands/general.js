@@ -43,6 +43,19 @@ const commands = [
       ctx.refreshBanner();
       return { handled: true };
     }
+  },
+  {
+    name: "/reset",
+    execute: async (ctx) => {
+      ctx.messages = [{ role: "system", content: ctx.cfg.profiles[ctx.cfg.profile].system }];
+      ctx.history = [];
+      ctx.historyState.chats[ctx.currentChat] = [];
+      ctx.pendingImages = [];
+      saveHistoryState(ctx.historyState);
+      log.ok("Chat context reset.");
+      ctx.refreshBanner();
+      return { handled: true };
+    }
   }
 ];
 

@@ -122,6 +122,7 @@ class MemoryStore {
 
   save() {
     this._ensureDir();
+    this._clearCache();
     try {
       fs.writeFileSync(GLOBAL_MEMORY, JSON.stringify({
         memories: this.memories,

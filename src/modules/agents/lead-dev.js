@@ -174,7 +174,7 @@ class CodeIntelligence {
   }
 
   getComplexityInsights() {
-    const files = listDir(this.cwd, true).filter(f => !f.includes("node_modules") && !f.includes(".git"));
+    const files = listDir(this.cwd, true).split("\n").filter(f => !f.includes("node_modules") && !f.includes(".git"));
     const insights = [];
     for (const file of files.slice(0, 100)) {
       const fullPath = path.join(this.cwd, file);
@@ -213,7 +213,7 @@ async function suggestNextTasks(cfg, analyzer, options = {}) {
   const git = new GitAnalyzer();
   const intel = new CodeIntelligence();
   
-  const structure = listDir(process.cwd(), true).slice(0, 100);
+  const structure = listDir(process.cwd(), true).split("\n").slice(0, 100);
   const gates = analyzer.runAllGates();
   const failedGates = gates.filter(g => !g.passed && !g.skipped);
   

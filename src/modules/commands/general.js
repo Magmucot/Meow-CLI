@@ -10,36 +10,40 @@ import {
 } from "../../core.js";
 
 /**
- * Handles general CLI commands like /exit, /help, /stats, /clear.
- * @param {Object} ctx - CLI context.
- * @param {string} input - User input.
- * @returns {Promise<Object|null>}
+ * General CLI commands.
  */
-const handleGeneral = async (ctx, input) => {
-  if (input === "/exit") return { handled: true, exit: true };
-
-  if (input === "/help") {
-    printHelp(ctx.cfg);
-    return { handled: true };
+const commands = [
+  {
+    name: "/exit",
+    execute: async () => ({ handled: true, exit: true })
+  },
+  {
+    name: "/help",
+    execute: async (ctx) => {
+      printHelp(ctx.cfg);
+      return { handled: true };
+    }
+  },
+  {
+    name: "/stats",
+    execute: async (ctx) => {
+      printStats(ctx.cfg, ctx.currentChat, ctx.history.length, loadPins().length);
+      return { handled: true };
+    }
+  },
+  {
+    name: "/clear",
+    execute: async (ctx) => {
+      ctx.messages = [{ role: "system", content: ctx.cfg.profiles[ctx.cfg.profile].system }];
+      ctx.history = [];
+      ctx.historyState.chats[ctx.currentChat] = [];
+      ctx.pendingImages = [];
+      saveHistoryState(ctx.historyState);
+      log.ok("Chat context cleared.");
+      ctx.refreshBanner();
+      return { handled: true };
+    }
   }
+];
 
-  if (input === "/stats") {
-    printStats(ctx.cfg, ctx.currentChat, ctx.history.length, loadPins().length);
-    return { handled: true };
-  }
-
-  if (input === "/clear") {
-    ctx.messages = [{ role: "system", content: ctx.cfg.profiles[ctx.cfg.profile].system }];
-    ctx.history = [];
-    ctx.historyState.chats[ctx.currentChat] = [];
-    ctx.pendingImages = [];
-    saveHistoryState(ctx.historyState);
-    log.ok("Chat context cleared.");
-    ctx.refreshBanner();
-    return { handled: true };
-  }
-
-  return null;
-};
-
-export { handleGeneral };
+export { commands };

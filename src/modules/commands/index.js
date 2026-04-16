@@ -15,6 +15,7 @@ import { handleRewind } from "./rewind.js";
 import { handleSessions } from "./sessions.js";
 import { handleCost } from "./cost.js";
 import { handleCompact } from "./compact.js";
+import { handleInit } from "./init.js";
 import {
   handleLead, handleDelegate, handleMemory, handlePair,
   handlePreview, handleCI, handleAudit, handleIncognito, handleRouting,

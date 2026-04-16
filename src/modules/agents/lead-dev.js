@@ -3,7 +3,7 @@ import path from "path";
 import { execSync } from "child_process";
 import { callApi } from "../api.js";
 import { executeTool, grepSearch, listDir, readFile } from "../tools.js";
-import { log, C, ACCENT, ACCENT2, MUTED, TEXT, TEXT_DIM, SUCCESS, ERROR, WARNING, AUTO_CLR, box, COLS } from "../ui.js";
+import { log, C, ACCENT, ACCENT2, MUTED, TEXT, TEXT_DIM, SUCCESS, ERROR, WARNING, AUTO_CLR, box, COLS, progressBar, stripAnsi } from "../ui.js";
 import { getModelPrice } from "../cost-tracker.js";
 import { formatDuration } from "../utils.js";
 import { getMemoryStore } from "../memory/rag.js";
@@ -13,7 +13,6 @@ const LEAD_LOG_DIR = path.join(DATA_DIR, "lead-dev-logs");
 
 /**
  * Enum for quality gate types.
- * @enum {string}
  */
 const QualityGate = {
   LINT: "lint",
@@ -23,7 +22,7 @@ const QualityGate = {
 };
 
 /**
- * Analyzes projects to detect type and available quality gates (test, lint, build).
+ * Analyzes projects to detect type and available quality gates.
  */
 class ProjectAnalyzer {
   constructor() {
@@ -35,10 +34,6 @@ class ProjectAnalyzer {
     this.typeCheckCmd = null;
   }
 
-  /**
-   * Detects project type and commands.
-   * @returns {ProjectAnalyzer}
-   */
   detect() {
     this.projectType = this._detectProjectType();
     this.testCmd = this._findCommand("test");
@@ -48,7 +43,6 @@ class ProjectAnalyzer {
     return this;
   }
 
-  /** @private */
   _detectProjectType() {
     if (fs.existsSync(path.join(this.cwd, "package.json"))) return "node";
     if (fs.existsSync(path.join(this.cwd, "Cargo.toml"))) return "rust";
@@ -58,7 +52,6 @@ class ProjectAnalyzer {
     return "unknown";
   }
 
-  /** @private */
   _findCommand(name) {
     try {
       if (this.projectType === "node") {
@@ -83,7 +76,6 @@ class ProjectAnalyzer {
     return null;
   }
 
-  /** @private */
   _findTypeCheck() {
     if (this.projectType === "node") {
       if (fs.existsSync(path.join(this.cwd, "tsconfig.json"))) return "npx tsc --noEmit";
@@ -92,11 +84,6 @@ class ProjectAnalyzer {
     return null;
   }
 
-  /**
-   * Runs a specific quality gate.
-   * @param {string} gate - Gate to run.
-   * @returns {Object} Result of the gate execution.
-   */
   runGate(gate) {
     const commands = {
       [QualityGate.LINT]: this.lintCmd,
@@ -107,26 +94,18 @@ class ProjectAnalyzer {
     const cmd = commands[gate];
     if (!cmd) return { gate, passed: true, skipped: true, output: "No command configured" };
     try {
-      const output = execSync(cmd, { encoding: "utf8", timeout: 60000, cwd: this.cwd }).trim();
+      const output = execSync(cmd, { encoding: "utf8", timeout: 60000, cwd: this.cwd, stdio: 'pipe' }).trim();
       return { gate, passed: true, skipped: false, output: output.slice(0, 1000) };
     } catch (e) {
       return { gate, passed: false, skipped: false, output: (e.stdout || e.stderr || e.message || "").slice(0, 1000) };
     }
   }
 
-  /**
-   * Runs all available quality gates.
-   * @returns {Array<Object>}
-   */
   runAllGates() {
     return [QualityGate.TYPE_CHECK, QualityGate.LINT, QualityGate.TEST, QualityGate.BUILD]
       .map(g => this.runGate(g));
   }
 
-  /**
-   * Gets a summary of detected capabilities.
-   * @returns {Object}
-   */
   getSummary() {
     return {
       type: this.projectType,
@@ -139,47 +118,131 @@ class ProjectAnalyzer {
 }
 
 /**
+ * Analyzes Git history and state.
+ */
+class GitAnalyzer {
+  constructor() {
+    this.cwd = process.cwd();
+    this.hasGit = fs.existsSync(path.join(this.cwd, ".git"));
+  }
+
+  getHotFiles(limit = 10) {
+    if (!this.hasGit) return [];
+    try {
+      const output = execSync("git log --format='' --name-only | sort | uniq -c | sort -rn | head -n " + limit, { encoding: "utf8", cwd: this.cwd });
+      return output.trim().split("\n").map(line => {
+        const [count, file] = line.trim().split(/\s+/);
+        return { file, changes: parseInt(count, 10) };
+      }).filter(f => f.file && fs.existsSync(path.join(this.cwd, f.file)));
+    } catch { return []; }
+  }
+
+  getRecentChanges(days = 7) {
+    if (!this.hasGit) return "";
+    try {
+      return execSync(`git log --since="${days} days ago" --oneline --stat`, { encoding: "utf8", cwd: this.cwd }).slice(0, 2000);
+    } catch { return ""; }
+  }
+
+  getUncommittedChanges() {
+    if (!this.hasGit) return "";
+    try {
+      return execSync("git status --short", { encoding: "utf8", cwd: this.cwd }).trim();
+    } catch { return ""; }
+  }
+}
+
+/**
+ * Static analysis for code intelligence.
+ */
+class CodeIntelligence {
+  constructor() {
+    this.cwd = process.cwd();
+  }
+
+  scanForKeywords(keywords = ["TODO", "FIXME", "HACK", "OPTIMIZE", "SECURITY"]) {
+    const results = [];
+    try {
+      for (const kw of keywords) {
+        const matches = grepSearch(kw, this.cwd, { include: "*.*" });
+        if (matches && matches.length > 0) {
+          results.push(...matches.map(m => ({ ...m, keyword: kw })));
+        }
+      }
+    } catch {}
+    return results.slice(0, 20);
+  }
+
+  getComplexityInsights() {
+    const files = listDir(this.cwd, true).filter(f => !f.includes("node_modules") && !f.includes(".git"));
+    const insights = [];
+    for (const file of files.slice(0, 100)) {
+      const fullPath = path.join(this.cwd, file);
+      if (fs.lstatSync(fullPath).isDirectory()) continue;
+      try {
+        const content = fs.readFileSync(fullPath, "utf8");
+        const lines = content.split("\n").length;
+        if (lines > 300) insights.push({ file, lines, issue: "High file length" });
+        
+        const deepIndents = (content.match(/^\s{8,}/gm) || []).length;
+        if (deepIndents > 20) insights.push({ file, deepIndents, issue: "High nesting complexity" });
+      } catch {}
+    }
+    return insights.sort((a, b) => (b.lines || 0) - (a.lines || 0)).slice(0, 10);
+  }
+}
+
+/**
  * Task category definitions.
  */
 const TASK_CATEGORIES = [
-  { id: "fix_bugs", label: "Fix bugs & errors", priority: 1, icon: "🐛" },
-  { id: "add_tests", label: "Improve test coverage", priority: 2, icon: "🧪" },
-  { id: "refactor", label: "Refactor & clean up", priority: 3, icon: "♻️" },
-  { id: "docs", label: "Update documentation", priority: 4, icon: "📝" },
-  { id: "security", label: "Security improvements", priority: 5, icon: "🔒" },
-  { id: "performance", label: "Optimize performance", priority: 6, icon: "⚡" },
-  { id: "deps", label: "Update dependencies", priority: 7, icon: "📦" },
+  { id: "fix_bugs", label: "Fix bugs & errors", priority: 1, icon: "🐛", color: ERROR },
+  { id: "add_tests", label: "Improve test coverage", priority: 2, icon: "🧪", color: SUCCESS },
+  { id: "refactor", label: "Refactor & clean up", priority: 3, icon: "♻️", color: ACCENT2 },
+  { id: "docs", label: "Update documentation", priority: 4, icon: "📝", color: TEXT_DIM },
+  { id: "security", label: "Security improvements", priority: 5, icon: "🔒", color: WARNING },
+  { id: "performance", label: "Optimize performance", priority: 6, icon: "⚡", color: ACCENT },
+  { id: "deps", label: "Update dependencies", priority: 7, icon: "📦", color: MUTED },
 ];
 
 /**
- * Uses AI to suggest next tasks based on project state and quality gates.
- * @param {Object} cfg - Configuration.
- * @param {ProjectAnalyzer} analyzer - Project analyzer instance.
- * @param {string} [context=""] - Additional context.
- * @returns {Promise<Array<Object>>} List of suggested tasks.
+ * Uses AI to suggest next tasks based on deep project context.
  */
-async function suggestNextTasks(cfg, analyzer, context = "") {
-  const cwd = process.cwd();
-  const structure = listDir(cwd, true);
-  const gateResults = analyzer.runAllGates();
-  const failedGates = gateResults.filter(g => !g.passed && !g.skipped);
-
+async function suggestNextTasks(cfg, analyzer, options = {}) {
+  const { context = "", focus = "" } = options;
+  const git = new GitAnalyzer();
+  const intel = new CodeIntelligence();
+  
+  const structure = listDir(process.cwd(), true).slice(0, 100);
+  const gates = analyzer.runAllGates();
+  const failedGates = gates.filter(g => !g.passed && !g.skipped);
+  
+  const hotFiles = git.getHotFiles(5);
+  const uncommitted = git.getUncommittedChanges();
+  const todoItems = intel.scanForKeywords();
+  const complexity = intel.getComplexityInsights();
+  
   const memory = getMemoryStore();
   const recentPatterns = memory.search("recent work improvements", { maxResults: 5 });
 
   const systemPrompt = [
-    "You are a senior tech lead analyzing a codebase for improvements.",
-    "Based on the project state, suggest 3-5 concrete next tasks.",
-    "Return ONLY valid JSON array of objects: {\"task\": \"...\", \"category\": \"...\", \"priority\": 1-5, \"reason\": \"...\", \"files\": [\"...\"]}",
+    "You are a Senior AI Tech Lead. Analyze the project state and suggest 3-5 high-impact tasks.",
+    focus ? `FOCUS AREA: ${focus.toUpperCase()}` : "",
+    "Return ONLY valid JSON array of objects: {\"task\": \"...\", \"category\": \"...\", \"priority\": 1-5, \"reason\": \"...\", \"files\": [\"...\"], \"parallel\": boolean}",
     "Categories: fix_bugs, add_tests, refactor, docs, security, performance, deps",
-  ].join("\n");
+    "Mark 'parallel: true' if the task is independent and can be executed by a sub-agent without affecting others.",
+  ].filter(Boolean).join("\n");
 
   const userPrompt = [
-    `Project type: ${analyzer.projectType}`,
-    `Structure:\n${structure.slice(0, 2000)}`,
-    failedGates.length > 0 ? `Failed quality gates:\n${failedGates.map(g => `${g.gate}: ${g.output.slice(0, 300)}`).join("\n")}` : "All quality gates pass",
-    context ? `Additional context: ${context}` : "",
-    recentPatterns.length > 0 ? `Recent patterns:\n${recentPatterns.map(r => r.memory.content.slice(0, 200)).join("\n")}` : "",
+    `Project: ${analyzer.projectType}`,
+    `Structure: ${structure.join(", ").slice(0, 500)}...`,
+    failedGates.length > 0 ? `FAILED GATES: ${failedGates.map(g => g.gate).join(", ")}` : "All gates pass.",
+    hotFiles.length > 0 ? `HOT FILES (frequent changes): ${hotFiles.map(f => f.file).join(", ")}` : "",
+    uncommitted ? `UNCOMMITTED CHANGES:\n${uncommitted}` : "",
+    todoItems.length > 0 ? `TODO/FIXME Items: ${todoItems.length} found` : "",
+    complexity.length > 0 ? `COMPLEXITY ISSUES: ${complexity.map(c => `${c.file} (${c.issue})`).join("; ")}` : "",
+    context ? `CONTEXT: ${context}` : "",
+    recentPatterns.length > 0 ? `RECENT MEMORY: ${recentPatterns.map(r => r.memory.content.slice(0, 100)).join("; ")}` : "",
   ].filter(Boolean).join("\n\n");
 
   try {
@@ -193,26 +256,14 @@ async function suggestNextTasks(cfg, analyzer, context = "") {
     return JSON.parse(cleaned);
   } catch (e) {
     log.dim(`Task suggestion failed: ${e.message}`);
-    if (failedGates.length > 0) {
-      return failedGates.map(g => ({
-        task: `Fix ${g.gate} failures`, category: "fix_bugs", priority: 1,
-        reason: g.output.slice(0, 200), files: [],
-      }));
-    }
-    return [{ task: "Review codebase for improvements", category: "refactor", priority: 3, reason: "Default task", files: [] }];
+    return [{ task: "Audit codebase for improvements", category: "refactor", priority: 3, reason: "Fallback due to API error", files: [], parallel: false }];
   }
 }
 
 /**
- * Manages an AI Lead Developer session.
- * Handles task suggestion, selection, execution via Autopilot, and quality gates.
+ * Manages an enhanced AI Lead Developer session.
  */
 class LeadDevSession {
-  /**
-   * @param {Object} cfg - Configuration.
-   * @param {Array<Object>} messages - Message history.
-   * @param {Function} saveCallback - Callback to save state.
-   */
   constructor(cfg, messages, saveCallback) {
     this.cfg = cfg;
     this.messages = messages;
@@ -226,32 +277,33 @@ class LeadDevSession {
     this.totalCost = 0;
     this.startTime = 0;
     this.logEntries = [];
+    
+    // Limits
     this.maxCost = cfg.lead_dev?.max_cost_usd || 10.0;
     this.maxTasks = cfg.lead_dev?.max_tasks || 20;
+    
+    // Modes
     this.autoMode = false;
+    this.planOnly = false;
+    this.focusArea = "";
   }
 
-  /** Aborts the session. */
   abort() { this.aborted = true; this.running = false; }
 
-  /** @private */
   _log(msg) {
     this.logEntries.push({ time: Date.now(), msg: typeof msg === "string" ? msg : JSON.stringify(msg) });
   }
 
-  /**
-   * Runs the lead developer session.
-   * @param {string} [initialContext=""] - Optional starting context.
-   * @param {Object} [options={}] - Run options.
-   * @returns {Promise<Object>} Session results.
-   */
   async run(initialContext = "", options = {}) {
     this.running = true;
     this.aborted = false;
     this.startTime = Date.now();
     this.autoMode = !!options.auto;
-    const origAutoYes = this.cfg.auto_yes;
+    this.planOnly = !!options.plan || !!options.dryRun;
+    this.focusArea = options.focus || "";
+    if (options.tasks) this.maxTasks = parseInt(options.tasks, 10);
 
+    const origAutoYes = this.cfg.auto_yes;
     this._printHeader(initialContext);
 
     try {
@@ -259,21 +311,23 @@ class LeadDevSession {
       while (round < this.maxTasks && !this.aborted && this.totalCost < this.maxCost) {
         round++;
 
-        // 1. Suggest tasks
-        console.log(`\n  ${ACCENT2}${C.bold}🔄 Round ${round}${C.reset} ${MUTED}— Analyzing project...${C.reset}`);
-
-        const context = round === 1 ? initialContext : `Previous: ${this.tasksCompleted.slice(-3).map(t => t.task).join("; ")}`;
-        const suggestions = await suggestNextTasks(this.cfg, this.analyzer, context);
+        console.log(`\n  ${ACCENT2}${C.bold}🔄 Round ${round}/${this.maxTasks}${C.reset} ${MUTED}— Deep Analysis...${C.reset}`);
+        
+        const context = round === 1 ? initialContext : `Completed: ${this.tasksCompleted.slice(-2).map(t => t.task).join("; ")}`;
+        const suggestions = await suggestNextTasks(this.cfg, this.analyzer, { context, focus: this.focusArea });
 
         if (!suggestions || suggestions.length === 0) {
-          log.ok("No more improvements suggested. Project is in good shape!");
+          log.ok("Project state is optimal. No further suggestions.");
           break;
         }
 
-        // 2. Present options
         this._printSuggestions(suggestions);
 
-        // 3. Get user choice (or auto-pick)
+        if (this.planOnly) {
+          log.info("Plan mode: stopping after suggestion.");
+          break;
+        }
+
         let selectedTask;
         if (this.autoMode) {
           selectedTask = suggestions[0];
@@ -290,34 +344,40 @@ class LeadDevSession {
           }
         }
 
-        // 4. Execute task via autopilot
-        console.log(`\n  ${ACCENT}${C.bold}⚡ Executing:${C.reset} ${TEXT}${selectedTask.task}${C.reset}`);
+        // Parallel execution check
+        const parallelTasks = suggestions.filter(s => s.parallel && s !== selectedTask).slice(0, 2);
+        
+        if (parallelTasks.length > 0 && this.autoMode) {
+           console.log(`  ${ACCENT}🔀 Running ${parallelTasks.length} sub-tasks in parallel...${C.reset}`);
+           await this._executeParallel([selectedTask, ...parallelTasks]);
+        } else {
+           console.log(`\n  ${ACCENT}${C.bold}⚡ Executing:${C.reset} ${TEXT}${selectedTask.task}${C.reset}`);
+           this.cfg.auto_yes = true;
+           await this._executeTask(selectedTask);
+           this.cfg.auto_yes = origAutoYes;
+        }
 
-        this.cfg.auto_yes = true;
-        const result = await this._executeTask(selectedTask);
-        this.cfg.auto_yes = origAutoYes;
-
-        // 5. Quality gate check
+        // Quality check
         const gates = this.analyzer.runAllGates();
         const failed = gates.filter(g => !g.passed && !g.skipped);
 
         if (failed.length > 0) {
-          console.log(`  ${WARNING}⚠ Quality gates failed:${C.reset}`);
-          for (const g of failed) {
-            console.log(`  ${ERROR}  ✗ ${g.gate}${C.reset}: ${MUTED}${g.output.slice(0, 100)}${C.reset}`);
-          }
+          log.warn(`Quality gates failed: ${failed.map(g => g.gate).join(", ")}`);
           this.tasksFailed.push({ ...selectedTask, gates: failed.map(g => g.gate) });
-          this._log(`Task failed gates: ${selectedTask.task}`);
+          
+          // Progressive learning: record failure
+          const memory = getMemoryStore();
+          memory.add("pattern", `Failed task "${selectedTask.task}" due to ${failed.map(g => g.gate).join(", ")} failures.`);
         } else {
-          console.log(`  ${SUCCESS}✔ All quality gates pass${C.reset}`);
+          log.ok(`Task completed and verified.`);
           this.tasksCompleted.push(selectedTask);
-          this._log(`Task completed: ${selectedTask.task}`);
-
+          
+          // Progressive learning: record success
           const memory = getMemoryStore();
           memory.recordDecision(selectedTask.task, selectedTask.reason || "lead-dev suggestion");
+          memory.add("pattern", `Successfully improved project: ${selectedTask.task}`);
         }
 
-        // 6. Status
         this._printStatus(round);
 
         if (!this.autoMode && round < this.maxTasks) {
@@ -326,8 +386,7 @@ class LeadDevSession {
         }
       }
     } catch (e) {
-      log.err(`Lead dev error: ${e.message}`);
-      this._log(`Error: ${e.message}`);
+      log.err(`Lead dev session error: ${e.message}`);
     } finally {
       this.cfg.auto_yes = origAutoYes;
       this.running = false;
@@ -346,16 +405,16 @@ class LeadDevSession {
     };
   }
 
-  /** @private */
   async _executeTask(task) {
     const { Autopilot } = await import("../autopilot.js");
     const ap = new Autopilot({ ...this.cfg, auto_yes: true, autopilot: { ...this.cfg.autopilot, max_iterations: 20 } },
       [...this.messages], this.saveCallback);
 
     const taskPrompt = [
-      task.task,
-      task.files?.length > 0 ? `\nRelevant files: ${task.files.join(", ")}` : "",
-      task.reason ? `\nReason: ${task.reason}` : "",
+      `TASK: ${task.task}`,
+      task.files?.length > 0 ? `\nFILES: ${task.files.join(", ")}` : "",
+      task.reason ? `\nCONTEXT: ${task.reason}` : "",
+      `\nMISSION: Improve the code according to the task while ensuring all tests/linters pass.`,
     ].filter(Boolean).join("");
 
     const result = await ap.run(taskPrompt);
@@ -365,110 +424,135 @@ class LeadDevSession {
     return result;
   }
 
-  /** @private */
-  _printHeader(context) {
-    const summary = this.analyzer.getSummary();
-    const lines = [
-      `${ACCENT2}${C.bold}AI LEAD DEVELOPER${C.reset}`,
-      "",
-      `${MUTED}Project:${C.reset} ${TEXT}${this.analyzer.projectType}${C.reset}  ${MUTED}CWD:${C.reset} ${TEXT_DIM}${process.cwd()}${C.reset}`,
-      `${MUTED}Gates:${C.reset} ${summary.test ? `${SUCCESS}test` : `${MUTED}test`}${C.reset} ${summary.lint ? `${SUCCESS}lint` : `${MUTED}lint`}${C.reset} ${summary.build ? `${SUCCESS}build` : `${MUTED}build`}${C.reset} ${summary.typeCheck ? `${SUCCESS}types` : `${MUTED}types`}${C.reset}`,
-      `${MUTED}Budget:${C.reset} $${this.maxCost} ${MUTED}max tasks:${C.reset} ${this.maxTasks}`,
-      context ? `\n${MUTED}Focus:${C.reset} ${TEXT}${context.slice(0, 100)}${C.reset}` : "",
-      `\n${TEXT_DIM}Press Ctrl+C to stop${C.reset}`,
-    ].filter(Boolean);
-    console.log("\n" + box(lines.join("\n"), { title: "🎯 LEAD DEV", color: ACCENT2, width: Math.min(COLS - 2, 65) }));
-  }
-
-  /** @private */
-  _printSuggestions(suggestions) {
-    console.log(`\n  ${ACCENT2}${C.bold}📋 Suggested Tasks${C.reset}`);
-    for (let i = 0; i < suggestions.length; i++) {
-      const s = suggestions[i];
-      const cat = TASK_CATEGORIES.find(c => c.id === s.category) || { icon: "▸" };
-      console.log(`  ${TEXT}${i + 1}.${C.reset} ${cat.icon} ${TEXT}${s.task}${C.reset}`);
-      if (s.reason) console.log(`     ${MUTED}${s.reason.slice(0, 80)}${C.reset}`);
+  async _executeParallel(tasks) {
+    const { AgentCoordinator } = await import("./subagent.js");
+    const coordinator = new AgentCoordinator(this.cfg);
+    
+    const taskDefs = tasks.map(t => ({
+      task: t.task,
+      maxTokens: 15000,
+      maxCost: 1.0,
+    }));
+    
+    const results = await coordinator.runParallel(taskDefs);
+    
+    for (const r of results) {
+      this.totalTokens += r.tokensUsed || 0;
+      this.totalCost += r.costUsd || 0;
+      if (r.status === "done") {
+        this.tasksCompleted.push({ task: r.task });
+      } else {
+        this.tasksFailed.push({ task: r.task, reason: r.error || r.result });
+      }
     }
   }
 
-  /** @private */
+  _printHeader(context) {
+    const summary = this.analyzer.getSummary();
+    const git = new GitAnalyzer();
+    const hot = git.getHotFiles(3);
+
+    const lines = [
+      `${ACCENT2}${C.bold}AI LEAD DEVELOPER v3.5${C.reset}`,
+      "",
+      `${MUTED}Project:${C.reset} ${TEXT}${this.analyzer.projectType}${C.reset}  ${MUTED}CWD:${C.reset} ${TEXT_DIM}${process.cwd()}${C.reset}`,
+      `${MUTED}Gates:${C.reset} ${summary.test ? SUCCESS("test") : MUTED("test")} ${summary.lint ? SUCCESS("lint") : MUTED("lint")} ${summary.build ? SUCCESS("build") : MUTED("build")}`,
+      hot.length > 0 ? `${MUTED}Hot Files:${C.reset} ${hot.map(f => TEXT_DIM(f.file)).join(", ")}` : "",
+      `${MUTED}Budget:${C.reset} $${this.maxCost} ${MUTED}Limit:${C.reset} ${this.maxTasks} tasks`,
+      this.focusArea ? `${WARNING("Focus Area:")} ${TEXT(this.focusArea)}` : "",
+      context ? `\n${MUTED}Initial Goal:${C.reset} ${TEXT(context)}` : "",
+    ].filter(Boolean);
+
+    console.log("\n" + box(lines.join("\n"), { title: "🎯 LEAD DEV ENGINE", color: ACCENT2, width: Math.min(COLS - 2, 70) }));
+  }
+
+  _printSuggestions(suggestions) {
+    console.log(`\n  ${ACCENT2}${C.bold}📋 Suggested Roadmap${C.reset}`);
+    for (let i = 0; i < suggestions.length; i++) {
+      const s = suggestions[i];
+      const cat = TASK_CATEGORIES.find(c => c.id === s.category) || { icon: "▸", color: TEXT };
+      const parallelTag = s.parallel ? `${ACCENT(" [parallel]")}` : "";
+      const priorityStars = "★".repeat(6 - (s.priority || 3));
+      
+      console.log(`  ${TEXT}${i + 1}.${C.reset} ${cat.icon} ${cat.color(s.task)}${parallelTag} ${MUTED}${priorityStars}${C.reset}`);
+      if (s.reason) console.log(`     ${TEXT_DIM}${s.reason.slice(0, 90)}${C.reset}`);
+    }
+  }
+
   _askUserChoice(suggestions) {
     return new Promise(resolve => {
-      const prompt = `\n  ${TEXT}Choose (1-${suggestions.length}), ${MUTED}'a'=auto, 'q'=quit${C.reset}: `;
+      const prompt = `\n  ${TEXT}Choose (1-${suggestions.length}), ${MUTED}'a'=auto, 'p'=plan, 'q'=quit${C.reset}: `;
       process.stdout.write(prompt);
       const onData = (d) => {
         clearTimeout(timer);
         process.stdin.off("data", onData);
         const answer = d.toString().trim().toLowerCase();
-        if (answer === "q" || answer === "quit") resolve(null);
-        else if (answer === "a" || answer === "auto") resolve(-1);
+        if (answer === "q") resolve(null);
+        else if (answer === "a") resolve(-1);
+        else if (answer === "p") { this.planOnly = true; resolve(null); }
         else {
           const num = parseInt(answer, 10);
           resolve(!isNaN(num) && num >= 1 && num <= suggestions.length ? num - 1 : 0);
         }
       };
-      const timer = setTimeout(() => { process.stdin.off("data", onData); resolve(0); }, 30000);
+      const timer = setTimeout(() => { process.stdin.off("data", onData); resolve(0); }, 60000);
       process.stdin.on("data", onData);
     });
   }
 
-  /** @private */
   _askContinue() {
     return new Promise(resolve => {
-      process.stdout.write(`\n  ${TEXT}Continue? ${MUTED}[Y/n/a(uto)]${C.reset} `);
+      process.stdout.write(`\n  ${TEXT}Next round? ${MUTED}[Y/n/a/p]${C.reset} `);
       const onData = (d) => {
         clearTimeout(timer);
         process.stdin.off("data", onData);
         const answer = d.toString().trim().toLowerCase();
-        if (answer === "n" || answer === "no") resolve(false);
-        else if (answer === "a" || answer === "auto") { this.autoMode = true; resolve(true); }
+        if (answer === "n") resolve(false);
+        else if (answer === "a") { this.autoMode = true; resolve(true); }
+        else if (answer === "p") { this.planOnly = true; resolve(false); }
         else resolve(true);
       };
-      const timer = setTimeout(() => { process.stdin.off("data", onData); resolve(true); }, 15000);
+      const timer = setTimeout(() => { process.stdin.off("data", onData); resolve(true); }, 30000);
       process.stdin.on("data", onData);
     });
   }
 
-  /** @private */
   _printStatus(round) {
     const elapsed = formatDuration(Date.now() - this.startTime);
-    console.log(`  ${MUTED}Round ${round} · ✔${this.tasksCompleted.length} ✗${this.tasksFailed.length} · ${this.totalTokens} tokens · $${this.totalCost.toFixed(4)} · ${elapsed}${C.reset}`);
+    const progress = progressBar(round, this.maxTasks, { width: 15 });
+    console.log(`  ${progress} Round ${round} · ✔${this.tasksCompleted.length} ✗${this.tasksFailed.length} · $${this.totalCost.toFixed(3)} · ${elapsed}`);
   }
 
-  /** @private */
   _printSummary() {
     const elapsed = formatDuration(Date.now() - this.startTime);
     const lines = [
-      `${C.bold}Tasks completed:${C.reset} ${SUCCESS}${this.tasksCompleted.length}${C.reset}`,
-      `${C.bold}Tasks failed:${C.reset}    ${this.tasksFailed.length > 0 ? ERROR : MUTED}${this.tasksFailed.length}${C.reset}`,
-      `${C.bold}Tokens:${C.reset}          ${this.totalTokens.toLocaleString()}`,
-      `${C.bold}Cost:${C.reset}            $${this.totalCost.toFixed(4)}`,
-      `${C.bold}Duration:${C.reset}        ${elapsed}`,
+      `${C.bold}Status:${C.reset}        ${this.tasksFailed.length === 0 ? SUCCESS("Excellent") : WARNING("Partial Success")}`,
+      `${C.bold}Completed:${C.reset}     ${SUCCESS(this.tasksCompleted.length)} tasks`,
+      `${C.bold}Failed:${C.reset}        ${this.tasksFailed.length > 0 ? ERROR(this.tasksFailed.length) : "0"} tasks`,
+      `${C.bold}Total Cost:${C.reset}    $${this.totalCost.toFixed(4)}`,
+      `${C.bold}Duration:${C.reset}      ${elapsed}`,
     ];
+    
     if (this.tasksCompleted.length > 0) {
-      lines.push("", `${C.bold}Completed:${C.reset}`);
-      for (const t of this.tasksCompleted) lines.push(`  ${SUCCESS}✔${C.reset} ${TEXT_DIM}${t.task}${C.reset}`);
+      lines.push("", `${C.bold}Achievements:${C.reset}`);
+      for (const t of this.tasksCompleted.slice(-5)) lines.push(`  ${SUCCESS("✔")} ${TEXT_DIM(t.task)}`);
     }
-    if (this.tasksFailed.length > 0) {
-      lines.push("", `${C.bold}Failed:${C.reset}`);
-      for (const t of this.tasksFailed) lines.push(`  ${ERROR}✗${C.reset} ${TEXT_DIM}${t.task} (${t.gates?.join(", ")})${C.reset}`);
-    }
-    console.log("\n" + box(lines.join("\n"), { title: "🎯 LEAD DEV SUMMARY", color: ACCENT2, width: Math.min(COLS - 2, 65) }));
+    
+    console.log("\n" + box(lines.join("\n"), { title: "🎯 LEAD DEV SUMMARY", color: ACCENT2, width: Math.min(COLS - 2, 70) }));
   }
 
-  /** @private */
   _saveLog() {
     try {
-      fs.mkdirSync(LEAD_LOG_DIR, { recursive: true });
+      if (!fs.existsSync(LEAD_LOG_DIR)) fs.mkdirSync(LEAD_LOG_DIR, { recursive: true });
       const ts = new Date().toISOString().replace(/[:.]/g, "-");
-      fs.writeFileSync(path.join(LEAD_LOG_DIR, `lead-${ts}.json`), JSON.stringify({
+      fs.writeFileSync(path.join(LEAD_LOG_DIR, `lead-v3-${ts}.json`), JSON.stringify({
         startTime: new Date(this.startTime).toISOString(),
         completed: this.tasksCompleted, failed: this.tasksFailed,
         tokens: this.totalTokens, cost: this.totalCost,
-        duration: Date.now() - this.startTime, entries: this.logEntries,
+        duration: Date.now() - this.startTime, focus: this.focusArea,
       }, null, 2));
     } catch {}
   }
 }
 
-export { LeadDevSession, ProjectAnalyzer, QualityGate, suggestNextTasks, TASK_CATEGORIES };
+export { LeadDevSession, ProjectAnalyzer, QualityGate, suggestNextTasks, TASK_CATEGORIES, GitAnalyzer, CodeIntelligence };

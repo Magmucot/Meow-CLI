@@ -164,9 +164,10 @@ class CodeIntelligence {
     const results = [];
     try {
       for (const kw of keywords) {
-        const matches = grepSearch(kw, this.cwd, { include: "*.*" });
-        if (matches && matches.length > 0) {
-          results.push(...matches.map(m => ({ ...m, keyword: kw })));
+        const output = grepSearch(kw, this.cwd, "*.*");
+        if (typeof output === "string" && !output.startsWith("❌") && !output.startsWith("ℹ")) {
+          const lines = output.split("\n");
+          results.push(...lines.map(line => ({ line, keyword: kw })));
         }
       }
     } catch {}

@@ -1,11 +1,11 @@
 import fs from "fs";
 import path from "path";
 import {
-  log, C, ACCENT, MUTED, TEXT, TEXT_DIM, SUCCESS, WARNING, Spinner, box, COLS,
+  log, C, ACCENT, MUTED, TEXT, TEXT_DIM, SUCCESS, WARNING, Spinner,
+  callApi,
+  buildSystemPrompt, loadProjectContext, LOCAL_MEOW_MD,
+  listDir,
 } from "../../core.js";
-import { callApi } from "../../core.js";
-import { buildSystemPrompt, loadProjectContext, LOCAL_MEOW_MD } from "../../core.js";
-import { listDir, readFile } from "../../core.js";
 
 /** @type {string} Project index filename */
 const PROJECT_MEOW = "project.meow";

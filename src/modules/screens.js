@@ -35,7 +35,7 @@ function banner(cfg, currentChat, historyLen, pinsCount = 0) {
 function printHelp(cfg) {
   log.br();
   const sections = [
-    { title: t(cfg, "help_title_chat"), items: [["/clear", t(cfg, "cmd_clear")], ["/chat list", t(cfg, "cmd_chat_list")], ["/chat new [name]", t(cfg, "cmd_chat_new")], ["/chat use <name>", t(cfg, "cmd_chat_use")], ["/chat delete <name>", t(cfg, "cmd_chat_delete")]] },
+    { title: t(cfg, "help_title_chat"), items: [["/clear", t(cfg, "cmd_clear")], ["/reset", "Reset chat context"], ["/chat list", t(cfg, "cmd_chat_list")], ["/chat new [name]", t(cfg, "cmd_chat_new")], ["/chat use <name>", t(cfg, "cmd_chat_use")], ["/chat delete <name>", t(cfg, "cmd_chat_delete")]] },
     { title: t(cfg, "help_title_autopilot"), items: [["/autopilot <task>", t(cfg, "cmd_autopilot")], ["/ap <task>", t(cfg, "cmd_autopilot_short")], ["/ap-config", t(cfg, "cmd_ap_config")], ["/ap-limit <N>", t(cfg, "cmd_ap_limit")], ["/ap-errors <N>", t(cfg, "cmd_ap_errors")], ["/trigger <cmd|off>", t(cfg, "cmd_trigger")], ["Ctrl+C", t(cfg, "cmd_ctrl_c")]] },
     { title: t(cfg, "help_title_images"), items: [["/img <path> [text]", t(cfg, "cmd_img_path")], ["/img <url> [text]", t(cfg, "cmd_img_url")], ["{img:path} text", t(cfg, "cmd_img_inline")]] },
     { title: t(cfg, "help_title_tools"), items: [["/list <path>", t(cfg, "cmd_list")], ["/read <file>", t(cfg, "cmd_read")], ["/shell <cmd>", t(cfg, "cmd_shell")]] },

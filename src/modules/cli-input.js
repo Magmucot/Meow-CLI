@@ -116,13 +116,8 @@ function redraw(promptPrefix, buf, cursorIdx, prevRows, cols) {
   const cursorRow = Math.floor(cursorPos / cols);
   const cursorCol = cursorPos % cols;
 
-  // We are currently at end of last written char
-  // End position: totalLen
-  const endRow = Math.floor(Math.max(0, totalLen - 1) / cols);
-  const endCol = (totalLen === 0 ? prefixLen : totalLen) % cols;
-  // If totalLen is 0 we're at col prefixLen on row 0
-
-  // Move from end position to cursor position
+  // After writing totalLen chars, terminal cursor is at endRow (already computed above)
+  // Move from endRow to cursorRow
   const rowDiff = cursorRow - endRow;
   const colTarget = cursorCol;
 

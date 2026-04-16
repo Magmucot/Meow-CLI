@@ -34,6 +34,12 @@ src/
         └── ...            # Other command handlers
 ```
 
+## Key Commands
+- `/init` — Index project with AI, creates `project.meow` + `MEOW.md`
+- `/init --force` — Regenerate even if files exist
+- `/context show` — View loaded context
+- `/context reload` — Reload MEOW.md into system prompt
+
 ## Coding Standards
 - ESM modules (import/export)
 - No TypeScript, no build step

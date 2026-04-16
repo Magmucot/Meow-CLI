@@ -99,9 +99,28 @@ const readMultilineInput = (promptTitle) => new Promise(resolve => {
       if (buffer.startsWith('/')) {
         const hits = COMMANDS.filter(c => c.startsWith(buffer));
         if (hits.length === 1) {
+          // Exact single match — complete it
           const diff = hits[0].slice(buffer.length);
           buffer = hits[0];
           process.stdout.write(ACCENT(diff));
+        } else if (hits.length > 1 && hits.length <= 8) {
+          // Show options inline
+          const commonPrefix = hits.reduce((acc, h) => {
+            let i = 0;
+            while (i < acc.length && i < h.length && acc[i] === h[i]) i++;
+            return acc.slice(0, i);
+          });
+          if (commonPrefix.length > buffer.length) {
+            const diff = commonPrefix.slice(buffer.length);
+            buffer = commonPrefix;
+            process.stdout.write(ACCENT(diff));
+          } else {
+            // Print options on next line, redraw prompt
+            process.stdout.write('\n');
+            const hint = hits.map(h => MUTED(h)).join('  ');
+            process.stdout.write('  ' + hint + '\n');
+            process.stdout.write(promptPrefix + buffer);
+          }
         }
       }
       return;

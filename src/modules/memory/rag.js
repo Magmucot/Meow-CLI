@@ -109,6 +109,7 @@ class MemoryStore {
   load() {
     if (this._loaded) return;
     this._ensureDir();
+    this._clearCache();
     try {
       if (fs.existsSync(GLOBAL_MEMORY)) {
         const data = JSON.parse(fs.readFileSync(GLOBAL_MEMORY, "utf8"));

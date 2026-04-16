@@ -177,7 +177,8 @@ async function main() {
     if (input.startsWith("/") && !commandResult?.handled) {
       const suggestion = suggestCommand(input);
       if (suggestion) {
-        log.warn(`Unknown command. Did you mean ${ACCENT(suggestion)}?  (or /help to see all commands)`);
+        log.warn(`Unknown command "${input.split(" ")[0]}". Did you mean ${ACCENT(suggestion)}?`);
+        log.dim(`  Type /help to see all commands, or /help <topic> to filter.`);
         continue;
       }
     }

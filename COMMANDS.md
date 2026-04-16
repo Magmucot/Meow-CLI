@@ -9,7 +9,8 @@ Meow CLI provides a wide array of commands to manage your AI sessions, project c
 | `/chat new [name]` | Start a new chat session |
 | `/chat use <name>` | Switch to an existing chat |
 | `/chat delete <name>` | Delete a chat session |
-| `/clear` | Clear the current terminal screen |
+| `/clear` | Clear chat context |
+| `/reset` | Reset chat context |
 
 ## 🤖 Autopilot & Agents
 | Command | Description |

@@ -175,18 +175,26 @@ class CodeIntelligence {
   }
 
   getComplexityInsights() {
-    const files = listDir(this.cwd, true).split("\n").filter(f => !f.includes("node_modules") && !f.includes(".git"));
+    const rawFiles = listDir(this.cwd, true).split("\n");
     const insights = [];
-    for (const file of files.slice(0, 100)) {
-      const fullPath = path.join(this.cwd, file);
-      if (fs.lstatSync(fullPath).isDirectory()) continue;
+    
+    for (let file of rawFiles.slice(0, 150)) {
+      file = file.trim();
+      if (!file || file.includes("(skipped)") || file.includes("(truncated)") || file.startsWith("❌")) continue;
+      
+      const isDir = file.endsWith("/");
+      const cleanFile = isDir ? file.slice(0, -1) : file;
+      const fullPath = path.join(this.cwd, cleanFile);
+      
       try {
+        if (!fs.existsSync(fullPath) || fs.lstatSync(fullPath).isDirectory()) continue;
+        
         const content = fs.readFileSync(fullPath, "utf8");
         const lines = content.split("\n").length;
-        if (lines > 300) insights.push({ file, lines, issue: "High file length" });
+        if (lines > 300) insights.push({ file: cleanFile, lines, issue: "High file length" });
         
         const deepIndents = (content.match(/^\s{8,}/gm) || []).length;
-        if (deepIndents > 20) insights.push({ file, deepIndents, issue: "High nesting complexity" });
+        if (deepIndents > 20) insights.push({ file: cleanFile, deepIndents, issue: "High nesting complexity" });
       } catch {}
     }
     return insights.sort((a, b) => (b.lines || 0) - (a.lines || 0)).slice(0, 10);

@@ -36,7 +36,8 @@ const color = (hex) => {
 };
 
 const style = (fn) => {
-  const proxy = new Proxy(fn, {
+  const wrapper = (...args) => fn(...args);
+  const proxy = new Proxy(wrapper, {
     get(target, prop) {
       if (prop === 'toString' || prop === Symbol.toPrimitive) {
         return () => getOpen(fn);
@@ -46,13 +47,6 @@ const style = (fn) => {
         return style(val);
       }
       return val;
-    },
-    apply(target, thisArg, args) {
-      const result = fn.apply(thisArg, args);
-      if (typeof result === 'function' || (typeof result === 'object' && result !== null)) {
-        return style(result);
-      }
-      return result;
     }
   });
   return proxy;

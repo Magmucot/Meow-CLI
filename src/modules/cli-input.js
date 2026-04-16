@@ -174,7 +174,7 @@ const readMultilineInput = (promptTitle) => new Promise(resolve => {
       // Move to end of input area
       const prefixLen = visLen(promptPrefix);
       const totalLen = prefixLen + buffer.length;
-      const endRow = Math.floor(Math.max(0, totalLen - 1) / cols);
+      const endRow = Math.floor(totalLen / cols);
       const cursorRow = Math.floor((prefixLen + cursor) / cols);
       const rowsToEnd = endRow - cursorRow;
       if (rowsToEnd > 0) readline.moveCursor(process.stdout, 0, rowsToEnd);

@@ -79,7 +79,68 @@ function timeAgo(ts) {
   return Math.floor(diff / 86400000) + "d ago";
 }
 
+/**
+ * Computes Levenshtein distance between two strings.
+ * @param {string} a
+ * @param {string} b
+ * @returns {number}
+ */
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({ length: m + 1 }, (_, i) => [i, ...Array(n).fill(0)]);
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i-1] === b[j-1]
+        ? dp[i-1][j-1]
+        : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+    }
+  }
+  return dp[m][n];
+}
+
+/**
+ * All known slash commands for fuzzy matching.
+ * @type {string[]}
+ */
+const ALL_COMMANDS = [
+  "/help", "/clear", "/reset", "/exit", "/stats", "/config",
+  "/model", "/profile", "/assistant", "/temp", "/key", "/url", "/lang", "/git",
+  "/chat", "/chat list", "/chat new", "/chat use", "/chat delete",
+  "/ap", "/autopilot", "/ap-config", "/ap-limit", "/ap-errors", "/trigger",
+  "/img", "/list", "/read", "/shell",
+  "/permissions", "/perm", "/context", "/audit", "/incognito",
+  "/lead", "/delegate", "/pair", "/ci", "/routing", "/preview",
+  "/memory", "/memory stats", "/memory search", "/memory clear",
+  "/rewind", "/session", "/session list", "/session load",
+  "/compact", "/cost", "/cost total",
+  "/init", "/pins", "/pin", "/plugin", "/template", "/vacuum", "/alias",
+  "/export", "/import", "/undo", "/saveconfig",
+];
+
+/**
+ * Suggests closest command for a mistyped slash command.
+ * @param {string} input - The mistyped input (e.g. "/halp").
+ * @returns {string|null} Closest command, or null if not close enough.
+ */
+function suggestCommand(input) {
+  if (!input.startsWith("/")) return null;
+  const word = input.split(" ")[0].toLowerCase();
+  if (word.length < 2) return null;
+
+  let best = null, bestDist = Infinity;
+  for (const cmd of ALL_COMMANDS) {
+    const cmdWord = cmd.split(" ")[0];
+    const dist = levenshtein(word, cmdWord);
+    if (dist < bestDist) { bestDist = dist; best = cmd; }
+  }
+  // Only suggest if within edit distance 2 and not already valid
+  if (best && bestDist > 0 && bestDist <= 2) return best;
+  return null;
+}
+
 export {
   applyAliases, renderTemplate, parseKv, makeChatName,
-  formatBytes, formatDuration, timeAgo
+  formatBytes, formatDuration, timeAgo,
+  levenshtein, suggestCommand, ALL_COMMANDS
 };

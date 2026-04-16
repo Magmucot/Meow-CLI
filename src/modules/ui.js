@@ -43,13 +43,14 @@ const style = (fn) => {
         return () => getOpen(fn);
       }
       const val = fn[prop];
-      if (typeof val === 'function') {
-        return (...args) => {
-          const result = val.apply(fn, args);
-          return typeof result === 'function' ? style(result) : result;
-        };
+      if (typeof val === 'function' || (typeof val === 'object' && val !== null)) {
+        // If it is a chalk function/object, wrap it
+        return style(val);
       }
       return val;
+    },
+    apply(target, thisArg, args) {
+      return fn(...args);
     }
   });
   wrapper[Symbol.toPrimitive] = () => getOpen(fn);

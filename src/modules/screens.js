@@ -29,7 +29,10 @@ function banner(cfg, currentChat, historyLen, pinsCount = 0) {
     console.log("");
     console.log(box(`${C.bold(WARNING(t(cfg, "api_key_missing_title")))}\n${TEXT_DIM(t(cfg, "api_key_missing_hint"))}`, { title: "⚠ Setup Required", color: "#DEB858", width: Math.min(COLS - 2, 55) }));
   }
-  console.log(`\n  ${MUTED(t(cfg, "type_help"))}\n`);
+  // Quick tips — much more useful than just "Type /help"
+  console.log(`\n  ${MUTED("─".repeat(Math.min(COLS - 4, 50)))}`);
+  console.log(`  ${TEXT_DIM("Just type to chat  ·  ")}${ACCENT("/ap <task>")} ${TEXT_DIM("autopilot  ·  ")}${ACCENT("/clear")} ${TEXT_DIM("reset  ·  ")}${ACCENT("?")} ${TEXT_DIM("help")}`);
+  console.log(`  ${MUTED("Tab")} ${TEXT_DIM("autocomplete  ·  ")}${MUTED("/help <topic>")} ${TEXT_DIM("e.g. /help chat, /help settings")}\n`);
 }
 
 /**

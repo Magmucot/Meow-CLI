@@ -92,7 +92,10 @@ function redraw(promptPrefix, buf, cursorIdx, prevRows, cols) {
   const totalLen = prefixLen + buf.length;
 
   // How many rows does the current content span?
-  const newRows = Math.max(1, Math.ceil(totalLen / cols));
+  // After writing totalLen chars, the terminal cursor is at row floor(totalLen/cols).
+  // We need prevRows = endRow + 1 so next redraw can move back to row 0.
+  const endRow = Math.floor(totalLen / cols);
+  const newRows = endRow + 1;
 
   // Move cursor up to the first row of the input area
   // prevRows - 1 because we're already on the last row

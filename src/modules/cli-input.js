@@ -1,5 +1,5 @@
 import readline from "readline";
-import { C, MUTED, ACCENT, TEXT, TEXT_DIM, SUCCESS, AI_GRADIENT } from "./ui.js";
+import { C, MUTED, ACCENT, TEXT, TEXT_DIM, SUCCESS, AI_GRADIENT, stripAnsi, COLS } from "./ui.js";
 
 /**
  * List of available commands for tab-completion.
@@ -43,97 +43,341 @@ const COMMANDS = [
   "/saveconfig",
 ];
 
+/** Persistent input history across prompts */
+const inputHistory = [];
+
 /**
- * Reads multi-line input from the terminal with basic syntax highlighting and autocomplete.
+ * Get the visible (strip-ANSI) length of a string.
+ * @param {string} s
+ * @returns {number}
+ */
+function visLen(s) {
+  return stripAnsi(s).length;
+}
+
+/**
+ * Given a buffer string and a cursor index, compute the styled display string
+ * with syntax highlighting for slash commands.
+ * @param {string} buf
+ * @param {boolean} isCommand - whether buf starts with /
+ * @returns {string} styled string (no cursor — cursor is shown via terminal position)
+ */
+function styledBuffer(buf, isCommand) {
+  if (!isCommand) return TEXT(buf);
+  // Highlight the command word in accent, rest in text
+  const spaceIdx = buf.indexOf(" ");
+  if (spaceIdx === -1) return ACCENT(buf);
+  return ACCENT(buf.slice(0, spaceIdx)) + TEXT(buf.slice(spaceIdx));
+}
+
+/**
+ * Full-redraw the input area.
+ * Moves cursor up to the first line of input, clears all lines, rewrites.
+ *
+ * @param {string} promptPrefix - e.g. "│  "
+ * @param {string} buf          - current buffer text
+ * @param {number} cursorIdx    - cursor position in buf (0..buf.length)
+ * @param {number} prevRows     - how many terminal rows the previous render occupied
+ * @param {number} cols         - terminal width
+ * @returns {number} new row count (for next redraw)
+ */
+function redraw(promptPrefix, buf, cursorIdx, prevRows, cols) {
+  const prefixLen = visLen(promptPrefix);
+  const isCommand = buf.startsWith("/");
+
+  // Build the styled display text
+  const display = styledBuffer(buf, isCommand);
+
+  // Calculate total visible length = prefix + buf
+  const totalLen = prefixLen + buf.length;
+
+  // How many rows does the current content span?
+  const newRows = Math.max(1, Math.ceil(totalLen / cols));
+
+  // Move cursor up to the first row of the input area
+  // prevRows - 1 because we're already on the last row
+  if (prevRows > 1) {
+    readline.moveCursor(process.stdout, 0, -(prevRows - 1));
+  }
+  readline.cursorTo(process.stdout, 0);
+
+  // Clear from cursor to end of screen
+  readline.clearScreenDown(process.stdout);
+
+  // Write prompt prefix + styled buffer
+  process.stdout.write(promptPrefix + display);
+
+  // Now position the cursor at cursorIdx within the buffer
+  // Total visible position = prefixLen + cursorIdx
+  const cursorPos = prefixLen + cursorIdx;
+  const cursorRow = Math.floor(cursorPos / cols);
+  const cursorCol = cursorPos % cols;
+
+  // We are currently at end of last written char
+  // End position: totalLen
+  const endRow = Math.floor(Math.max(0, totalLen - 1) / cols);
+  const endCol = (totalLen === 0 ? prefixLen : totalLen) % cols;
+  // If totalLen is 0 we're at col prefixLen on row 0
+
+  // Move from end position to cursor position
+  const rowDiff = cursorRow - endRow;
+  const colTarget = cursorCol;
+
+  if (rowDiff !== 0) {
+    readline.moveCursor(process.stdout, 0, rowDiff);
+  }
+  readline.cursorTo(process.stdout, colTarget);
+
+  return newRows;
+}
+
+/**
+ * Reads a single-line input from the terminal with:
+ * - Left/Right arrow: cursor movement
+ * - Up/Down arrow: history navigation
+ * - Backspace/Delete: proper deletion at cursor
+ * - Home/End: jump to start/end
+ * - Tab: autocomplete
+ * - Enter / Ctrl+D: submit
+ * - Ctrl+C: exit
+ *
  * @param {string} promptTitle - Title to display above the input area.
  * @returns {Promise<string>} The user's input.
  */
 const readMultilineInput = (promptTitle) => new Promise(resolve => {
+  const cols = process.stdout.columns || COLS || 80;
   const promptPrefix = `${MUTED("│")}  `;
-  console.log(`\n${ACCENT("◇")}  ${TEXT_DIM(promptTitle)} ${MUTED("(Enter: newline, Shift+Enter: send)")}`);
+
+  console.log(`\n${ACCENT("◇")}  ${TEXT_DIM(promptTitle)} ${MUTED("(Tab: complete, ↑↓: history, ←→: move cursor)")}`);
   process.stdout.write(promptPrefix);
 
   let buffer = "";
+  let cursor = 0;        // index into buffer (0..buffer.length)
+  let rows = 1;          // how many terminal rows the current input occupies
+  let historyIndex = -1; // -1 = current input, 0..n-1 = history entries
+  let savedBuffer = "";  // saved current input when browsing history
+
+  /**
+   * Perform a full redraw and update rows count.
+   */
+  function refresh() {
+    rows = redraw(promptPrefix, buffer, cursor, rows, cols);
+  }
 
   const onKey = (str, key = {}) => {
     // Ctrl+C
-    if (key.ctrl && key.name === 'c') {
+    if (key.ctrl && key.name === "c") {
       process.stdout.write("\n");
       process.exit(0);
     }
 
-    // Submit: Ctrl+D, Ctrl+Enter, or Shift+Enter
-    if ((key.ctrl && key.name === 'd') || 
-        (key.name === 'return' && (buffer.startsWith('/') || key.ctrl || key.shift))) {
+    // Submit: Enter (always submit in single-line mode), Ctrl+D
+    if (key.name === "return" || key.name === "enter" || (key.ctrl && key.name === "d")) {
+      // Move to end of input area
+      const prefixLen = visLen(promptPrefix);
+      const totalLen = prefixLen + buffer.length;
+      const endRow = Math.floor(Math.max(0, totalLen - 1) / cols);
+      const cursorRow = Math.floor((prefixLen + cursor) / cols);
+      const rowsToEnd = endRow - cursorRow;
+      if (rowsToEnd > 0) readline.moveCursor(process.stdout, 0, rowsToEnd);
+
       process.stdout.write("\n" + MUTED("└") + "\n");
       cleanup();
-      resolve(buffer.trim());
+
+      const result = buffer.trim();
+      // Save to history (avoid duplicates at top)
+      if (result && (inputHistory.length === 0 || inputHistory[0] !== result)) {
+        inputHistory.unshift(result);
+        // Keep history bounded
+        if (inputHistory.length > 500) inputHistory.pop();
+      }
+      resolve(result);
       return;
     }
 
-    // New line: Enter (when not submitting)
-    if (key.name === 'return') {
-      buffer += "\n";
-      process.stdout.write("\n" + promptPrefix);
-      return;
-    }
-
-    // Backspace
-    if (key.name === 'backspace') {
-      if (buffer.length > 0) {
-        if (buffer.endsWith('\n')) {
-          buffer = buffer.slice(0, -1);
-          readline.moveCursor(process.stdout, 0, -1);
-          readline.cursorTo(process.stdout, 100); 
-        } else {
-          buffer = buffer.slice(0, -1);
-          readline.moveCursor(process.stdout, -1, 0);
-          readline.clearLine(process.stdout, 1);
-        }
+    // Arrow Up — history previous
+    if (key.name === "up") {
+      if (inputHistory.length === 0) return;
+      if (historyIndex === -1) {
+        savedBuffer = buffer;
+      }
+      const newIdx = Math.min(historyIndex + 1, inputHistory.length - 1);
+      if (newIdx !== historyIndex) {
+        historyIndex = newIdx;
+        buffer = inputHistory[historyIndex];
+        cursor = buffer.length;
+        refresh();
       }
       return;
     }
 
-    // Tab (Autocomplete)
-    if (key.name === 'tab') {
-      if (buffer.startsWith('/')) {
-        const hits = COMMANDS.filter(c => c.startsWith(buffer));
+    // Arrow Down — history next
+    if (key.name === "down") {
+      if (historyIndex === -1) return;
+      const newIdx = historyIndex - 1;
+      if (newIdx < 0) {
+        historyIndex = -1;
+        buffer = savedBuffer;
+        cursor = buffer.length;
+        refresh();
+      } else {
+        historyIndex = newIdx;
+        buffer = inputHistory[historyIndex];
+        cursor = buffer.length;
+        refresh();
+      }
+      return;
+    }
+
+    // Arrow Left — move cursor left
+    if (key.name === "left") {
+      if (key.ctrl || key.meta) {
+        // Ctrl+Left: jump word left
+        let i = cursor;
+        while (i > 0 && buffer[i - 1] === " ") i--;
+        while (i > 0 && buffer[i - 1] !== " ") i--;
+        cursor = i;
+      } else {
+        if (cursor > 0) cursor--;
+      }
+      refresh();
+      return;
+    }
+
+    // Arrow Right — move cursor right
+    if (key.name === "right") {
+      if (key.ctrl || key.meta) {
+        // Ctrl+Right: jump word right
+        let i = cursor;
+        while (i < buffer.length && buffer[i] === " ") i++;
+        while (i < buffer.length && buffer[i] !== " ") i++;
+        cursor = i;
+      } else {
+        if (cursor < buffer.length) cursor++;
+      }
+      refresh();
+      return;
+    }
+
+    // Home — jump to start
+    if (key.name === "home" || (key.ctrl && key.name === "a")) {
+      cursor = 0;
+      refresh();
+      return;
+    }
+
+    // End — jump to end
+    if (key.name === "end" || (key.ctrl && key.name === "e")) {
+      cursor = buffer.length;
+      refresh();
+      return;
+    }
+
+    // Backspace — delete char before cursor
+    if (key.name === "backspace") {
+      if (cursor > 0) {
+        buffer = buffer.slice(0, cursor - 1) + buffer.slice(cursor);
+        cursor--;
+        refresh();
+      }
+      return;
+    }
+
+    // Delete — delete char at cursor
+    if (key.name === "delete") {
+      if (cursor < buffer.length) {
+        buffer = buffer.slice(0, cursor) + buffer.slice(cursor + 1);
+        refresh();
+      }
+      return;
+    }
+
+    // Ctrl+K — kill to end of line
+    if (key.ctrl && key.name === "k") {
+      buffer = buffer.slice(0, cursor);
+      refresh();
+      return;
+    }
+
+    // Ctrl+U — kill to start of line
+    if (key.ctrl && key.name === "u") {
+      buffer = buffer.slice(cursor);
+      cursor = 0;
+      refresh();
+      return;
+    }
+
+    // Ctrl+W — kill word before cursor
+    if (key.ctrl && key.name === "w") {
+      let i = cursor;
+      while (i > 0 && buffer[i - 1] === " ") i--;
+      while (i > 0 && buffer[i - 1] !== " ") i--;
+      buffer = buffer.slice(0, i) + buffer.slice(cursor);
+      cursor = i;
+      refresh();
+      return;
+    }
+
+    // Tab — autocomplete
+    if (key.name === "tab") {
+      // Only autocomplete if cursor is at the end of a /command (no spaces yet, or completing the command word)
+      const wordBeforeCursor = buffer.slice(0, cursor);
+      if (wordBeforeCursor.startsWith("/")) {
+        const hits = COMMANDS.filter(c => c.startsWith(wordBeforeCursor));
         if (hits.length === 1) {
-          // Exact single match — complete it
-          const diff = hits[0].slice(buffer.length);
-          buffer = hits[0];
-          process.stdout.write(ACCENT(diff));
+          // Single match — complete
+          const suffix = hits[0].slice(wordBeforeCursor.length);
+          buffer = hits[0] + buffer.slice(cursor);
+          cursor = hits[0].length;
+          refresh();
         } else if (hits.length > 1 && hits.length <= 8) {
-          // Show options inline
+          // Find common prefix
           const commonPrefix = hits.reduce((acc, h) => {
             let i = 0;
             while (i < acc.length && i < h.length && acc[i] === h[i]) i++;
             return acc.slice(0, i);
           });
-          if (commonPrefix.length > buffer.length) {
-            const diff = commonPrefix.slice(buffer.length);
-            buffer = commonPrefix;
-            process.stdout.write(ACCENT(diff));
+          if (commonPrefix.length > wordBeforeCursor.length) {
+            const suffix = commonPrefix.slice(wordBeforeCursor.length);
+            buffer = commonPrefix + buffer.slice(cursor);
+            cursor = commonPrefix.length;
+            refresh();
           } else {
-            // Print options on next line, redraw prompt
-            process.stdout.write('\n');
-            const hint = hits.map(h => MUTED(h)).join('  ');
-            process.stdout.write('  ' + hint + '\n');
-            process.stdout.write(promptPrefix + buffer);
+            // Show options
+            const prefixLen = visLen(promptPrefix);
+            const totalLen = prefixLen + buffer.length;
+            const endRow = Math.floor(Math.max(0, totalLen - 1) / cols);
+            const cursorRow = Math.floor((prefixLen + cursor) / cols);
+            const rowsToEnd = endRow - cursorRow;
+            if (rowsToEnd > 0) readline.moveCursor(process.stdout, 0, rowsToEnd);
+
+            process.stdout.write("\n");
+            const hint = hits.map(h => MUTED(h)).join("  ");
+            process.stdout.write("  " + hint + "\n");
+            process.stdout.write(promptPrefix + styledBuffer(buffer, buffer.startsWith("/")));
+
+            // Recalculate rows after re-printing
+            rows = Math.max(1, Math.ceil((prefixLen + buffer.length) / cols));
+            // Reposition cursor
+            const cursorPos = prefixLen + cursor;
+            const cRow = Math.floor(cursorPos / cols);
+            const cCol = cursorPos % cols;
+            const eRow = Math.floor(Math.max(0, prefixLen + buffer.length - 1) / cols);
+            const rowBack = eRow - cRow;
+            if (rowBack > 0) readline.moveCursor(process.stdout, 0, -rowBack);
+            readline.cursorTo(process.stdout, cCol);
           }
         }
       }
       return;
     }
 
-    // Normal chars
+    // Normal printable character
     if (str && !key.ctrl && !key.meta) {
-      buffer += str;
-      if (buffer.startsWith('/') && !buffer.includes(' ')) {
-        process.stdout.write(ACCENT(str));
-      } else {
-        process.stdout.write(TEXT(str));
-      }
+      buffer = buffer.slice(0, cursor) + str + buffer.slice(cursor);
+      cursor += str.length;
+      historyIndex = -1; // typing resets history browsing
+      refresh();
     }
   };
 

@@ -344,7 +344,7 @@ const readMultilineInput = (promptTitle) => new Promise(resolve => {
             // Show options
             const prefixLen = visLen(promptPrefix);
             const totalLen = prefixLen + buffer.length;
-            const endRow = Math.floor(Math.max(0, totalLen - 1) / cols);
+            const endRow = Math.floor(totalLen / cols);
             const cursorRow = Math.floor((prefixLen + cursor) / cols);
             const rowsToEnd = endRow - cursorRow;
             if (rowsToEnd > 0) readline.moveCursor(process.stdout, 0, rowsToEnd);
@@ -355,12 +355,12 @@ const readMultilineInput = (promptTitle) => new Promise(resolve => {
             process.stdout.write(promptPrefix + styledBuffer(buffer, buffer.startsWith("/")));
 
             // Recalculate rows after re-printing
-            rows = Math.max(1, Math.ceil((prefixLen + buffer.length) / cols));
+            rows = Math.floor((prefixLen + buffer.length) / cols) + 1;
             // Reposition cursor
             const cursorPos = prefixLen + cursor;
             const cRow = Math.floor(cursorPos / cols);
             const cCol = cursorPos % cols;
-            const eRow = Math.floor(Math.max(0, prefixLen + buffer.length - 1) / cols);
+            const eRow = Math.floor((prefixLen + buffer.length) / cols);
             const rowBack = eRow - cRow;
             if (rowBack > 0) readline.moveCursor(process.stdout, 0, -rowBack);
             readline.cursorTo(process.stdout, cCol);

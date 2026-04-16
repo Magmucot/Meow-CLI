@@ -19,8 +19,15 @@ const commands = [
   },
   {
     name: "/help",
-    execute: async (ctx) => {
-      printHelp(ctx.cfg);
+    execute: async (ctx, { rest }) => {
+      printHelp(ctx.cfg, rest || null);
+      return { handled: true };
+    }
+  },
+  {
+    name: "?",
+    execute: async (ctx, { rest }) => {
+      printHelp(ctx.cfg, rest || null);
       return { handled: true };
     }
   },

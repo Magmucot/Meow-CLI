@@ -196,6 +196,7 @@ class MemoryStore {
     }
     if (results.length > 0) this.save();
 
+    this._cache.set(cacheKey, results);
     return results;
   }
 

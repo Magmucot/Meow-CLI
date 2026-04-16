@@ -98,6 +98,7 @@ const DEFAULT_CONFIG = {
     "/mem": "/memory",
     "/pr": "/preview",
     "/rt": "/routing",
+    "/i": "/init",
   },
   templates: {
     "fix": "Исправь ошибку в следующем коде: {code}. Объясни, в чем была проблема.",

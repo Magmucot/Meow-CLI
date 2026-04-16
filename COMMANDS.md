@@ -78,6 +78,8 @@ Meow CLI provides a wide array of commands to manage your AI sessions, project c
 ## 📦 Miscellaneous
 | Command | Description |
 |---------|-------------|
+| `/init` | Index the project with AI — creates `project.meow` and `MEOW.md` |
+| `/init --force` | Regenerate `project.meow` and `MEOW.md` even if they exist |
 | `/stats` | Show session and system statistics |
 | `/help` | Show the help screen |
 | `/exit` | Exit Meow CLI |

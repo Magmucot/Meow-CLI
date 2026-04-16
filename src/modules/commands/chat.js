@@ -20,42 +20,42 @@ const commands = [
           ctx.historyState.current = newName;
           ctx.currentChat = newName;
           ctx.history = [];
-          ctx.messages = [{ role: \"system\", content: ctx.cfg.profiles[ctx.cfg.profile].system }];
+          ctx.messages = [{ role: "system", content: ctx.cfg.profiles[ctx.cfg.profile].system }];
           ctx.pendingImages = [];
           saveHistoryState(ctx.historyState);
           log.ok(`Created & switched to: ${newName}`);
         }
-      } else if (cmd === \"use\") {
-        if (!name) { log.err(\"Specify chat name.\"); }
+      } else if (cmd === "use") {
+        if (!name) { log.err("Specify chat name."); }
         else if (!ctx.historyState.chats[name]) { log.err(`Chat '${name}' not found.`); }
         else {
           ctx.historyState.current = name;
           ctx.currentChat = name;
           ctx.history = ctx.historyState.chats[name] || [];
-          ctx.messages = [{ role: \"system\", content: ctx.cfg.profiles[ctx.cfg.profile].system }, ...ctx.history];
+          ctx.messages = [{ role: "system", content: ctx.cfg.profiles[ctx.cfg.profile].system }, ...ctx.history];
           ctx.pendingImages = [];
           saveHistoryState(ctx.historyState);
           log.ok(`Switched to: ${name}`);
         }
-      } else if (cmd === \"delete\") {
-        if (!name) { log.err(\"Specify chat name.\"); }
+      } else if (cmd === "delete") {
+        if (!name) { log.err("Specify chat name."); }
         else if (!ctx.historyState.chats[name]) { log.err(`Chat '${name}' not found.`); }
         else {
           delete ctx.historyState.chats[name];
           if (ctx.historyState.current === name) {
             const names = Object.keys(ctx.historyState.chats);
-            const next = names[0] || \"default\";
+            const next = names[0] || "default";
             if (!ctx.historyState.chats[next]) ctx.historyState.chats[next] = [];
             ctx.historyState.current = next;
             ctx.currentChat = next;
             ctx.history = ctx.historyState.chats[next];
-            ctx.messages = [{ role: \"system\", content: ctx.cfg.profiles[ctx.cfg.profile].system }, ...ctx.history];
+            ctx.messages = [{ role: "system", content: ctx.cfg.profiles[ctx.cfg.profile].system }, ...ctx.history];
           }
           saveHistoryState(ctx.historyState);
           log.ok(`Deleted: ${name}`);
         }
       } else {
-        log.err(\"Unknown /chat command. Use: list | new | use | delete\");
+        log.err("Unknown /chat command. Use: list | new | use | delete");
       }
 
       return { handled: true };

@@ -95,6 +95,11 @@ class MemoryStore {
     this.memories = [];
     this.projectIndex = {};
     this._loaded = false;
+    this._cache = new Map();
+  }
+
+  _clearCache() {
+    this._cache.clear();
   }
 
   _ensureDir() {

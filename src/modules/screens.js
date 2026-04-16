@@ -76,8 +76,10 @@ const HELP_SECTIONS = (cfg) => [
     emoji: "🔀",
     summary: "Multi-agent workflows and pair programming",
     items: [
-      ["/lead [context]",       "AI Lead Developer — continuous improvement"],
-      ["/lead auto [context]",  "Auto-mode: no prompts, picks tasks itself"],
+      ["/lead [opts]",         "AI Lead Developer — deep analysis & auto-pilot"],
+      ["/lead --plan",         "Plan mode: list tasks without executing them"],
+      ["/lead --focus <area>", "Focus on specific area (security, perf, tests)"],
+      ["/lead --tasks <N>",    "Limit number of tasks in this session"],
       ["/delegate <task>",      "Delegate task to parallel sub-agent"],
       ["/pair <mode>",          "Pair programming (verbose/balanced/silent/off)"],
       ["/ci status",            "Show CI/CD workflows"],

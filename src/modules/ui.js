@@ -35,21 +35,43 @@ const color = (hex) => {
   return proxy;
 };
 
+const style = (fn) => {
+  const wrapper = (text) => text ? fn(text) : getOpen(fn);
+  const proxy = new Proxy(wrapper, {
+    get(target, prop) {
+      if (prop === 'toString' || prop === Symbol.toPrimitive) {
+        return () => getOpen(fn);
+      }
+      const val = fn[prop];
+      if (typeof val === 'function') {
+        return (...args) => {
+          const result = val.apply(fn, args);
+          return typeof result === 'function' ? style(result) : result;
+        };
+      }
+      return val;
+    }
+  });
+  wrapper[Symbol.toPrimitive] = () => getOpen(fn);
+  wrapper.toString = () => getOpen(fn);
+  return proxy;
+};
+
 const C = {
-  reset:     { [Symbol.toPrimitive]: () => getOpen(chalk.reset), ...chalk.reset },
-  bold:      { [Symbol.toPrimitive]: () => getOpen(chalk.bold), ...chalk.bold },
-  dim:       { [Symbol.toPrimitive]: () => getOpen(chalk.dim), ...chalk.dim },
-  italic:    { [Symbol.toPrimitive]: () => getOpen(chalk.italic), ...chalk.italic },
-  underline: { [Symbol.toPrimitive]: () => getOpen(chalk.underline), ...chalk.underline },
-  inverse:   { [Symbol.toPrimitive]: () => getOpen(chalk.inverse), ...chalk.inverse },
-  gray:      { [Symbol.toPrimitive]: () => getOpen(chalk.gray), ...chalk.gray },
-  red:       { [Symbol.toPrimitive]: () => getOpen(chalk.red), ...chalk.red },
-  green:     { [Symbol.toPrimitive]: () => getOpen(chalk.green), ...chalk.green },
-  yellow:    { [Symbol.toPrimitive]: () => getOpen(chalk.yellow), ...chalk.yellow },
-  blue:      { [Symbol.toPrimitive]: () => getOpen(chalk.blue), ...chalk.blue },
-  magenta:   { [Symbol.toPrimitive]: () => getOpen(chalk.magenta), ...chalk.magenta },
-  cyan:      { [Symbol.toPrimitive]: () => getOpen(chalk.cyan), ...chalk.cyan },
-  white:     { [Symbol.toPrimitive]: () => getOpen(chalk.white), ...chalk.white },
+  reset:     style(chalk.reset),
+  bold:      style(chalk.bold),
+  dim:       style(chalk.dim),
+  italic:    style(chalk.italic),
+  underline: style(chalk.underline),
+  inverse:   style(chalk.inverse),
+  gray:      style(chalk.gray),
+  red:       style(chalk.red),
+  green:     style(chalk.green),
+  yellow:    style(chalk.yellow),
+  blue:      style(chalk.blue),
+  magenta:   style(chalk.magenta),
+  cyan:      style(chalk.cyan),
+  white:     style(chalk.white),
 };
 
 const ACCENT    = color("#CC7832");

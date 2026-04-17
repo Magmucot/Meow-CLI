@@ -113,6 +113,10 @@ async function main() {
   if (opts.pipe) return runPipeMode(opts);
   const ctx = createCliContext();
   registerSignalHandlers(ctx);
+
+  const trust = getTrustManager();
+  await trust.fetchGlobalTrust();
+
   const sessionMgr = new SessionManager();
   const checkpointMgr = new CheckpointManager(sessionMgr.create());
   const costTracker = new CostTracker();

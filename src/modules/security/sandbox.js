@@ -123,6 +123,14 @@ class WorkspaceSandbox {
   }
 
   /**
+   * Adds a path to the allowed list.
+   * @param {string} p - Path to allow.
+   */
+  allowPath(p) {
+    this.allowedPaths.add(path.resolve(p));
+  }
+
+  /**
    * Generic validation for tool calls.
    * @param {string} toolName - Name of the tool.
    * @param {Object} args - Tool arguments.

@@ -19,6 +19,8 @@ const PIN_FILE = path.join(DATA_DIR, "pins.json");
 const PLUGIN_DIR = path.join(DATA_DIR, "plugins");
 /** @type {string} Path to tool permissions storage */
 const PERM_FILE = path.join(DATA_DIR, "permissions.json");
+/** @type {string} Path to trust state storage */
+const TRUST_FILE = path.join(DATA_DIR, "trust.json");
 /** @type {string} Directory for saved sessions */
 const SESSION_DIR = path.join(DATA_DIR, "sessions");
 /** @type {string} Directory for file-system checkpoints */

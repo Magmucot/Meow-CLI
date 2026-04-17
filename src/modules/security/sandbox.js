@@ -141,9 +141,15 @@ class WorkspaceSandbox {
       case "write_file":
       case "patch_file":
       case "read_file":
+      case "delete_file":
       case "git_diff":
       case "git_commit":
         return this.isPathAllowed(args.path || args.file || "");
+      case "move_file":
+      case "copy_file":
+        const fromCheck = this.isPathAllowed(args.from || "");
+        if (!fromCheck.allowed) return fromCheck;
+        return this.isPathAllowed(args.to || "");
       case "run_shell":
         return this.isCommandAllowed(args.cmd || "");
       case "list_dir":

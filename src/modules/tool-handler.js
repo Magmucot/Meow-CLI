@@ -123,7 +123,10 @@ async function handleTools(msg, messages, cfg, checkpointMgr = null) {
     }
 
     if (audit) audit.logPermission(name, "allowed");
-    if (checkpointMgr && (name === "write_file" || name === "patch_file") && args.path) checkpointMgr.create(`${name}: ${args.path}`, [args.path]);
+    if (checkpointMgr && (name === "write_file" || name === "patch_file" || name === "move_file" || name === "delete_file") && (args.path || args.from)) {
+      const target = args.path || args.from;
+      checkpointMgr.create(`${name}: ${target}`, [target]);
+    }
 
     const env = sandbox ? sandbox.filterEnv() : process.env;
     let result = await executeTool(name, args, cfg, env);

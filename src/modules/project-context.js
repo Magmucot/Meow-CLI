@@ -3,6 +3,8 @@ import path from "path";
 import { GLOBAL_MEOW_MD } from "./config.js";
 import { log, C, ACCENT, MUTED, TEXT, TEXT_DIM, COLS } from "./ui.js";
 
+/** @typedef {{ source: "global" | "project", path: string, content: string }} ContextPart */
+
 /** @type {string} Default filename for local project context */
 const LOCAL_MEOW_MD = "MEOW.md";
 /** @type {RegExp} Pattern for !include directives in context files */
@@ -13,16 +15,27 @@ const MAX_CONTEXT_SIZE = 50000;
 const MAX_INCLUDE_DEPTH = 3;
 
 /**
+ * Returns the canonical path for an existing filesystem entry.
+ * Symlinks are resolved to enforce root boundaries correctly.
+ *
+ * @param {string} targetPath
+ * @returns {string}
+ */
+function getRealPath(targetPath) {
+  return fs.realpathSync(targetPath);
+}
+
+/**
  * Checks whether a candidate path is inside an allowed root directory.
- * Uses real paths to prevent escaping through symlinks.
+ * Comparison is performed on canonical paths to prevent symlink escapes.
  *
  * @param {string} rootPath
  * @param {string} candidatePath
  * @returns {boolean}
  */
 function isPathWithinRoot(rootPath, candidatePath) {
-  const rootReal = fs.realpathSync(rootPath);
-  const candidateReal = fs.realpathSync(candidatePath);
+  const rootReal = getRealPath(rootPath);
+  const candidateReal = getRealPath(candidatePath);
   const rel = path.relative(rootReal, candidateReal);
 
   return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
@@ -35,7 +48,7 @@ function isPathWithinRoot(rootPath, candidatePath) {
  * @param {string} basePath - Directory of the current file.
  * @param {number} [depth=0] - Current recursion depth.
  * @param {string} [allowedRoot=basePath] - Root directory that includes must stay within.
- * @param {Set<string>} [seen=new Set()] - Already included real paths for cycle detection.
+ * @param {Set<string>} [seen=new Set()] - Canonical paths already included.
  * @returns {string} Content with inclusions resolved.
  */
 function resolveIncludes(
@@ -49,6 +62,8 @@ function resolveIncludes(
     return content;
   }
 
+  const rootReal = getRealPath(allowedRoot);
+
   return content.replace(INCLUDE_RE, (_match, rawIncludePath) => {
     const includePath = rawIncludePath.trim();
     const resolved = path.resolve(basePath, includePath);
@@ -58,12 +73,11 @@ function resolveIncludes(
         return `<!-- Include not found: ${includePath} -->`;
       }
 
-      if (!isPathWithinRoot(allowedRoot, resolved)) {
+      if (!isPathWithinRoot(rootReal, resolved)) {
         return `<!-- Include blocked (outside context root): ${includePath} -->`;
       }
 
-      const resolvedReal = fs.realpathSync(resolved);
-
+      const resolvedReal = getRealPath(resolved);
       if (seen.has(resolvedReal)) {
         return `<!-- Include skipped (cycle detected): ${includePath} -->`;
       }
@@ -76,7 +90,7 @@ function resolveIncludes(
         included,
         path.dirname(resolvedReal),
         depth + 1,
-        allowedRoot,
+        rootReal,
         nextSeen,
       );
     } catch (error) {
@@ -98,9 +112,8 @@ function loadContextFile(filePath) {
       return null;
     }
 
-    const fileReal = fs.realpathSync(filePath);
+    const fileReal = getRealPath(filePath);
     let content = fs.readFileSync(fileReal, "utf8").trim();
-
     if (!content) {
       return null;
     }
@@ -126,9 +139,10 @@ function loadContextFile(filePath) {
 /**
  * Loads all relevant project context (global and local).
  *
- * @returns {Array<{source: string, path: string, content: string}>}
+ * @returns {ContextPart[]} List of context parts with source, path, and content.
  */
 function loadProjectContext() {
+  /** @type {ContextPart[]} */
   const parts = [];
 
   const globalCtx = loadContextFile(GLOBAL_MEOW_MD);
@@ -157,7 +171,7 @@ function loadProjectContext() {
  * Builds a complete system prompt by appending project context.
  *
  * @param {string} basePrompt - Initial system prompt.
- * @param {Array<{source: string, path: string, content: string}>|null} [contextParts=null]
+ * @param {ContextPart[] | null} [contextParts=null] - Pre-loaded context parts.
  * @returns {string} Final system prompt.
  */
 function buildSystemPrompt(basePrompt, contextParts = null) {
@@ -195,15 +209,16 @@ function printContext() {
     );
   } else {
     for (const part of parts) {
-      const size = part.content.length;
-      const lines = part.content.split("\n").length;
-      const tokens = Math.ceil(size / 3.5);
+      const linesList = part.content.split("\n");
+      const lines = linesList.length;
+      const tokens = Math.ceil(part.content.length / 3.5);
 
-      console.log(`  ${TEXT}${part.source}${C.reset} ${MUTED}${part.path}${C.reset}`);
+      console.log(
+        `  ${TEXT}${part.source}${C.reset} ${MUTED}${part.path}${C.reset}`,
+      );
       console.log(`  ${TEXT_DIM}${lines} lines, ~${tokens} tokens${C.reset}`);
 
-      const preview = part.content.split("\n").slice(0, 5);
-      for (const line of preview) {
+      for (const line of linesList.slice(0, 5)) {
         console.log(
           `  ${MUTED}┃${C.reset} ${TEXT_DIM}${line.slice(0, COLS - 8)}${C.reset}`,
         );
@@ -228,7 +243,7 @@ function printContext() {
  * Prepares the local context file for editing.
  *
  * @param {string|null} [editor=null] - Command to open the editor.
- * @returns {{editor: string, path: string}} Object containing the editor command and file path.
+ * @returns {{ editor: string, path: string }} Object containing the editor command and file path.
  */
 function editContext(editor = null) {
   const localPath = path.resolve(process.cwd(), LOCAL_MEOW_MD);

@@ -32,14 +32,17 @@ class ProjectAnalyzer {
     this.lintCmd = null;
     this.buildCmd = null;
     this.typeCheckCmd = null;
+    this._cache = new Map();
   }
 
   detect() {
+    if (this._cache.has("detected")) return this;
     this.projectType = this._detectProjectType();
     this.testCmd = this._findCommand("test");
     this.lintCmd = this._findCommand("lint");
     this.buildCmd = this._findCommand("build");
     this.typeCheckCmd = this._findTypeCheck();
+    this._cache.set("detected", true);
     return this;
   }
 

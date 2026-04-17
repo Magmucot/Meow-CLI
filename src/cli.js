@@ -12,7 +12,7 @@ import {
   makePrompt, applyAliases, Spinner,
   IMAGE_EXTENSIONS, isImagePath, isUrl,
   t, loadPlugins, runPluginCommand, listPluginCommands,
-  suggestCommand,
+  suggestCommand, getTrustManager, TRUST_LEVEL
 } from "./core.js";
 
 import { buildSystemPrompt, loadProjectContext } from "./modules/project-context.js";

@@ -130,6 +130,18 @@ function redraw(promptPrefix, buf, cursorIdx, prevRows, cols) {
 }
 
 /**
+ * Sanitizes user input to prevent injection attacks and remove control characters.
+ * @param {string} input - Raw user input.
+ * @returns {string} Sanitized input.
+ */
+function sanitizeInput(input) {
+  if (typeof input !== "string") return "";
+  // Remove null bytes and other dangerous control characters
+  // Keep \n, \r, \t
+  return input.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").trim();
+}
+
+/**
  * Reads a single-line input from the terminal with:
  * - Left/Right arrow: cursor movement
  * - Up/Down arrow: history navigation

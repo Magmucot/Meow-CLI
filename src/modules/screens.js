@@ -272,7 +272,7 @@ function printStats(cfg, currentChat, historyLen, pinsCount = 0) {
   const vac = cfg.vacuum || {};
   const pluginSummary = getPluginSummary(cfg);
   const rows = [
-    ["Chat", `${SUCCESS(currentChat)}`], ["Messages", `${TEXT(historyLen)}`], ["Model", `${ACCENT(cfg.model)}`], ["Profile", `${ACCENT2(cfg.profile)}`], ["Temperature", `${TEXT(profile.temperature)}`], ["API Base", `${MUTED(cfg.api_base)}`],
+    ["Chat", `${SUCCESS(currentChat)}`], ["Messages", `${TEXT(historyLen)}`], ["Model", `${ACCENT(cfg.model)}`], ["Profile", `${ACCENT2(cfg.profile)}`], ["Provider", `${ACCENT3(cfg.active_provider || "manual")}`], ["Temperature", `${TEXT(profile.temperature)}`], ["API Base", `${MUTED(cfg.api_base)}`],
     ["API Key", cfg.api_key ? `${SUCCESS("set")} ${MUTED("(" + cfg.api_key.slice(0, 8) + "…)")}` : `${ERROR("not set")}`],
     ["Auto-yes", cfg.auto_yes ? `${SUCCESS("on")}` : `${MUTED("off")}`], ["Git Autocommit", cfg.git?.autocommit === false ? `${MUTED("off")}` : `${SUCCESS("on")}`], ["AP Limit", `${AUTO_CLR(cfg.autopilot?.max_iterations || 50)}`], ["Plugins", `${TEXT(pluginSummary)}`],
     ["Vacuum", `${vac.enabled ? SUCCESS("on") : MUTED("off")} ${MUTED("(drop " + (vac.drop_count || 0) + ", keep " + (vac.keep_last || 0) + ")")}`], ["Pins", `${TEXT(pinsCount)}`], ["CWD", `${MUTED(process.cwd())}`],

@@ -98,7 +98,8 @@ class ProjectAnalyzer {
     const cmd = commands[gate];
     if (!cmd) return { gate, passed: true, skipped: true, output: "No command configured" };
     try {
-      const output = execSync(cmd, { encoding: "utf8", timeout: 60000, cwd: this.cwd, stdio: 'pipe' }).trim();
+      const sandbox = getSandbox();
+      const output = sandbox.safeExec(cmd, { cwd: this.cwd, stdio: 'pipe' }).trim();
       return { gate, passed: true, skipped: false, output: output.slice(0, 1000) };
     } catch (e) {
       return { gate, passed: false, skipped: false, output: (e.stdout || e.stderr || e.message || "").slice(0, 1000) };

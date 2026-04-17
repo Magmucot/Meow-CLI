@@ -101,7 +101,9 @@ const DEFAULT_CONFIG = {
     "/pr": "/preview",
     "/rt": "/routing",
     "/i": "/init",
+    "/trust": "/trust",
   },
+  trust_url: "https://raw.githubusercontent.com/meowcli/meow-cli/main/globals/trust/trust.meow",
   templates: {
     "fix": "Исправь ошибку в следующем коде: {code}. Объясни, в чем была проблема.",
     "refactor": "Отрефактори этот файл: {file}. Улучши читаемость и производительность.",

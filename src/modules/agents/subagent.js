@@ -12,6 +12,8 @@ import { executeTool, TOOLS } from "../tools.js";
 import { log, C, MUTED, TEXT_DIM, ACCENT, SUCCESS, ERROR, WARNING, TOOL_CLR } from "../ui.js";
 import { getModelPrice } from "../cost-tracker.js";
 import { formatDuration } from "../utils.js";
+import { askPermission, getPermissionStore } from "../permissions.js";
+import { getSandbox, getAuditLogger } from "../security/sandbox.js";
 
 const MAX_DEPTH = 3;
 const MAX_PARALLEL = 8;
@@ -146,7 +148,7 @@ class SubAgent {
    */
   constructor(task, cfg, options = {}) {
     this.task = task;
-    this.cfg = { ...cfg, auto_yes: true };
+    this.cfg = { ...cfg };
     this.depth = options.depth || 0;
     this.parentId = options.parentId || null;
     this.maxIterations = options.maxIterations || 15;
@@ -224,7 +226,26 @@ class SubAgent {
     if (!this.env.isToolAllowed(name)) {
       return `❌ Tool '${name}' not allowed in this sub-agent scope`;
     }
-    return await executeTool(name, args, this.cfg);
+
+    const sandbox = getSandbox();
+    const audit = getAuditLogger();
+    const sandboxCheck = sandbox.validate(name, args);
+    if (!sandboxCheck.allowed) {
+      const res = `❌ Blocked by sandbox: ${sandboxCheck.reason}`;
+      audit.logPermission(name, "sandbox_blocked");
+      return res;
+    }
+
+    const permStore = getPermissionStore();
+    const allowed = await askPermission(name, args, permStore, this.cfg.auto_yes);
+    if (!allowed) {
+      audit.logPermission(name, "denied");
+      return `❌ Permission denied for ${name}`;
+    }
+    audit.logPermission(name, "allowed");
+
+    const env = sandbox.filterEnv();
+    return await executeTool(name, args, this.cfg, env);
   }
 
   /** @private */

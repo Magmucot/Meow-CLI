@@ -21,3 +21,4 @@ export * from "./modules/checkpoints.js";
 export * from "./modules/sessions.js";
 export * from "./modules/cost-tracker.js";
 export * from "./modules/compact.js";
+export * from "./modules/smart/prompt-optimizer.js";

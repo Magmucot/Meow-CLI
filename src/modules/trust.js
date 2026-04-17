@@ -53,9 +53,10 @@ class TrustManager {
   async getRepoId() {
     if (this.repoId) return this.repoId;
     try {
-      const remote = await runShell("git remote get-url origin", true);
-      if (remote && !remote.includes("❌")) {
-        this.repoId = remote.trim();
+      const { execSync } = await import("child_process");
+      const remote = execSync("git remote get-url origin", { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+      if (remote) {
+        this.repoId = remote;
         return this.repoId;
       }
     } catch {}

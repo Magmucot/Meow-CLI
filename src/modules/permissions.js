@@ -15,10 +15,10 @@ const LEVEL = {
 };
 
 /** @type {Set<string>} Set of tools that are always considered safe to run */
-const SAFE_TOOLS = new Set(["list_dir", "read_file", "grep_search", "ask_user", "confirm", "choose", "git_status", "git_log", "git_diff"]);
+const SAFE_TOOLS = new Set(["list_dir", "read_file", "grep_search", "ask_user", "confirm", "choose", "git_status", "git_log", "git_diff", "linux_process_list", "linux_disk_usage", "linux_net_stat"]);
 
 /** @type {Set<string>} Set of tools that require explicit user permission */
-const DANGEROUS_TOOLS = new Set(["run_shell", "write_file", "patch_file", "http_request", "web_search", "git_commit", "git_branch", "ci_pipeline", "delegate_task"]);
+const DANGEROUS_TOOLS = new Set(["run_shell", "write_file", "patch_file", "http_request", "web_search", "git_commit", "git_branch", "ci_pipeline", "delegate_task", "linux_process_kill", "linux_service_control", "linux_pkg_manage"]);
 
 /**
  * Determines whether a delegate_task request can lead to mutating operations.
@@ -339,6 +339,12 @@ function formatToolDetail(toolName, args) {
       return `Search: ${args.query || ""}`;
     case "git_commit":
       return `Commit: ${args.message || ""}`;
+    case "linux_process_kill":
+      return `PID: ${args.pid} Signal: ${args.signal || "SIGTERM"}`;
+    case "linux_service_control":
+      return `Service: ${args.service} Action: ${args.action}`;
+    case "linux_pkg_manage":
+      return `Action: ${args.action} Package: ${args.package || "N/A"}`;
     default:
       return JSON.stringify(args).slice(0, 200);
   }

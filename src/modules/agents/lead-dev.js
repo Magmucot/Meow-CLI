@@ -401,6 +401,9 @@ class LeadDevSession {
         if (!this.autoMode && round < this.maxTasks) {
           const cont = await this._askContinue();
           if (!cont) break;
+        } else if (this.autoMode && round < this.maxTasks) {
+          // Small delay for reliability in auto-mode
+          await new Promise(r => setTimeout(r, 1000));
         }
       }
     } catch (e) {

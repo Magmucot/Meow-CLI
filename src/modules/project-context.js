@@ -13,23 +13,38 @@ const MAX_CONTEXT_SIZE = 50000;
 const MAX_INCLUDE_DEPTH = 3;
 
 /**
+ * Checks whether a candidate path is inside an allowed root directory.
+ * @param {string} rootPath
+ * @param {string} candidatePath
+ * @returns {boolean}
+ */
+function isPathWithinRoot(rootPath, candidatePath) {
+  const rel = path.relative(rootPath, candidatePath);
+  return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
+}
+
+/**
  * Recursively resolves !include directives in context files.
  * @param {string} content - Raw file content.
  * @param {string} basePath - Directory of the current file.
  * @param {number} [depth=0] - Current recursion depth.
+ * @param {string} [allowedRoot=basePath] - Root directory that includes must stay within.
  * @returns {string} Content with inclusions resolved.
  */
-function resolveIncludes(content, basePath, depth = 0) {
+function resolveIncludes(content, basePath, depth = 0, allowedRoot = basePath) {
   if (depth >= MAX_INCLUDE_DEPTH) return content;
 
   return content.replace(INCLUDE_RE, (match, includePath) => {
     const resolved = path.resolve(basePath, includePath.trim());
+    if (!isPathWithinRoot(allowedRoot, resolved)) {
+      return `<!-- Include blocked (outside context root): ${includePath.trim()} -->`;
+    }
     try {
       if (!fs.existsSync(resolved)) {
         return `<!-- Include not found: ${includePath.trim()} -->`;
       }
       const included = fs.readFileSync(resolved, "utf8");
-      return resolveIncludes(included, path.dirname(resolved), depth + 1);
+      return resolveIncludes(included, path.dirname(resolved), depth + 1, allowedRoot);
     } catch (e) {
       return `<!-- Include error: ${e.message} -->`;
     }
@@ -47,7 +62,7 @@ function loadContextFile(filePath) {
     let content = fs.readFileSync(filePath, "utf8").trim();
     if (!content) return null;
 
-    content = resolveIncludes(content, path.dirname(filePath));
+    content = resolveIncludes(content, path.dirname(filePath), 0, path.dirname(filePath));
 
     if (content.length > MAX_CONTEXT_SIZE) {
       content = content.slice(0, MAX_CONTEXT_SIZE) + "\n\n... [TRUNCATED]";

@@ -146,14 +146,16 @@ class GitAnalyzer {
   getRecentChanges(days = 7) {
     if (!this.hasGit) return "";
     try {
-      return execSync(`git log --since="${days} days ago" --oneline --stat`, { encoding: "utf8", cwd: this.cwd }).slice(0, 2000);
+      const sandbox = getSandbox();
+      return sandbox.safeExec(`git log --since="${days} days ago" --oneline --stat`, { cwd: this.cwd }).slice(0, 2000);
     } catch { return ""; }
   }
 
   getUncommittedChanges() {
     if (!this.hasGit) return "";
     try {
-      return execSync("git status --short", { encoding: "utf8", cwd: this.cwd }).trim();
+      const sandbox = getSandbox();
+      return sandbox.safeExec("git status --short", { cwd: this.cwd }).trim();
     } catch { return ""; }
   }
 }

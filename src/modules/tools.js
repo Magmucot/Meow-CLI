@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import os from "os";
 import { createTwoFilesPatch } from "diff";
 import { exec, execFileSync, execSync } from "child_process";
 import { C, WARNING, SUCCESS, ERROR, MUTED, TEXT, TEXT_DIM, log, box, COLS, SHELL_TIMEOUT_MS } from "./ui.js";

@@ -35,8 +35,6 @@ function collectProjectSnapshot(cwd) {
   const KEY_FILES = [
     "package.json",
     "package-lock.json",
-    "tsconfig.json",
-    "jsconfig.json",
     "pyproject.toml",
     "setup.py",
     "requirements.txt",
@@ -131,8 +129,8 @@ function collectProjectSnapshot(cwd) {
  * @returns {Promise<{projectMeow: string, meowMd: string}>}
  */
 async function generateInitFiles(snapshot, cfg) {
-  const systemPrompt = `You are an expert software architect and technical writer.
-Your task is to analyze a project and produce two files that help AI assistants understand it quickly.
+  const systemPrompt = `You are a Lead Software Architect and Senior Developer.
+Your task is to analyze a project and produce two files that help AI assistants understand it quickly and act as an expert Lead Developer.
 
 You MUST respond with EXACTLY this format — no extra text before or after:
 
@@ -144,25 +142,26 @@ You MUST respond with EXACTLY this format — no extra text before or after:
 
   const userPrompt = `Analyze this project and generate:
 
-1. **project.meow** — A structured project index that lets an AI assistant instantly understand:
-   - Project name, type, purpose, tech stack
-   - Directory structure with explanations of key folders/files
-   - Main entry points and how the code flows
-   - Key modules/components and their responsibilities
-   - Dependencies and what they're used for
-   - Build/run/test commands
-   - Any patterns or conventions used
-   - Environment variables / config files
-   - Anything else an AI needs to work effectively without re-reading everything
+1. **project.meow** — A structured project index and Lead Dev context that lets an AI assistant instantly understand:
+   - Project name, type, and high-level purpose.
+   - Core Architecture & Design Patterns (Lead-Dev level).
+   - Tech stack and primary dependencies.
+   - Directory structure with explanations of key folders/files.
+   - Main entry points and application lifecycle.
+   - Key modules/components and their responsibilities.
+   - Build, run, test, and deployment commands.
+   - Coding standards and best practices used in this project.
+   - Environment variables and configuration overview.
+   - Future roadmap or areas of improvement (if inferable).
 
-2. **MEOW.md** — Agent instructions file (like AGENTS.md / CLAUDE.md) with:
-   - Project overview (1-2 sentences)
-   - Architecture summary
-   - Coding conventions and style rules
-   - How to run / build / test
-   - Important files and what they do
-   - Rules for the AI assistant (what to do, what NOT to do)
-   - Any gotchas or important notes
+2. **MEOW.md** — Agent Instructions with Lead-Dev persona:
+   - Project overview (concise).
+   - Lead-Dev Context: How to think about this project's architecture and growth.
+   - Coding conventions & style (specific to this repo).
+   - Step-by-step Build/Test/Run guide.
+   - Critical files and "do not touch" areas.
+   - Strategic Rules for the AI assistant (Lead-Dev level guidance).
+   - Known limitations and technical debt.
 
 Here is the project data:
 

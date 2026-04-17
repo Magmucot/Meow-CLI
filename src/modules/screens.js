@@ -1,5 +1,4 @@
 import { COMMANDS } from "./cli-input.js";
-import { HELP_SECTIONS } from "./screens.js";
 import {
   ACCENT, ACCENT2, ACCENT3, SUCCESS, WARNING, ERROR, MUTED,
   TEXT, TEXT_DIM, AUTO_CLR, INFO, C, COLS, box, table, list, log, stripAnsi, 
@@ -8,7 +7,7 @@ import {
 import { t } from "./config.js";
 import { listPlugins } from "./plugins.js";
 
-const HELP_SECTIONS = (cfg) => [
+function banner(cfg, currentChat, historyLen, pinsCount = 0) {
   console.clear();
   const logoText = `
   ╔╦╗╔═╗╔═╗╦ ╦  ╔═╗╦  ╦
@@ -36,8 +35,6 @@ const HELP_SECTIONS = (cfg) => [
   console.log(`  ${TEXT_DIM("Just type to chat  ·  ")}${ACCENT("/ap <task>")} ${TEXT_DIM("autopilot  ·  ")}${ACCENT("/clear")} ${TEXT_DIM("reset  ·  ")}${ACCENT("?")} ${TEXT_DIM("help")}`);
   console.log(`  ${MUTED("Tab")} ${TEXT_DIM("autocomplete  ·  ")}${MUTED("/help <topic>")} ${TEXT_DIM("e.g. /help chat, /help settings")}\n`);
 }
-
-import { COMMANDS } from "./cli-input.js";
 
 /**
  * All help sections — used by printHelp for both overview and filtered views.
@@ -201,8 +198,6 @@ const HELP_SECTIONS = (cfg) => [
   },
 ];
 
-export { HELP_SECTIONS };
-
 function printHelp(cfg, topic) {
   const sections = HELP_SECTIONS(cfg);
 
@@ -324,7 +319,7 @@ function printConfig(cfg) {
   const safe = { ...cfg, api_key: cfg.api_key ? cfg.api_key.slice(0, 8) + "…" : "(not set)" };
   const json = JSON.stringify(safe, null, 2);
   for (const line of json.split("\n")) {
-    const colored = line.replace(/\"([^\"]+)\":/g, (m, p1) => `${ACCENT("\"" + p1 + "\"")}:`).replace(/: \"([^\"]+)\"/g, (m, p1) => `: ${SUCCESS("\"" + p1 + "\"")}`).replace(/: (\d+\.?\d*)/g, (m, p1) => `: ${WARNING(p1)}`).replace(/: (true|false)/g, (m, p1) => `: ${INFO(p1)}`).replace(/: (null)/g, (m, p1) => `: ${MUTED(p1)}`);
+    const colored = line.replace(/\"([^"]+)\":/g, (m, p1) => `${ACCENT("\"" + p1 + "\"")}:`).replace(/: \"([^"]+)\"/g, (m, p1) => `: ${SUCCESS("\"" + p1 + "\"")}`).replace(/: (\d+\.?\d*)/g, (m, p1) => `: ${WARNING(p1)}`).replace(/: (true|false)/g, (m, p1) => `: ${INFO(p1)}`).replace(/: (null)/g, (m, p1) => `: ${MUTED(p1)}`);
     console.log(`  ${colored}`);
   }
   console.log(`  ${MUTED("─".repeat(50))}\n`);

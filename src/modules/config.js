@@ -62,6 +62,11 @@ const DEFAULT_CONFIG = {
     save_log: true,
     trigger_cmd: "",
   },
+  prompt_optimizer: {
+    enabled: false,
+    model: "", // Empty means use current model
+    verbose: true,
+  },
   plugins: {
     disabled: [],
   },

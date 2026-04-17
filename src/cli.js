@@ -1,3 +1,4 @@
+import { StreamRenderer, renderNonStreaming } from "./modules/ui-render.js";
 import { askInput } from "./modules/cli-input.js";
 import { intro, outro, note } from "@clack/prompts";
 import { createCliContext, registerSignalHandlers } from "./modules/cli-context.js";

@@ -84,8 +84,24 @@ function createMemory(type, content, metadata = {}) {
 function getProjectId() {
   const cwd = process.cwd();
   try {
-    const pkg = JSON.parse(fs.readFileSync(path.join(cwd, "package.json"), "utf8"));
-    return pkg.name || path.basename(cwd);
+    const pkgPath = path.join(cwd, "package.json");
+    if (fs.existsSync(pkgPath)) {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
+      return pkg.name || path.basename(cwd);
+    }
+    const pyPath = path.join(cwd, "pyproject.toml");
+    if (fs.existsSync(pyPath)) {
+      const py = fs.readFileSync(pyPath, "utf8");
+      const match = py.match(/name\s*=\s*["'](.+?)["']/);
+      if (match) return match[1];
+    }
+    const cargoPath = path.join(cwd, "Cargo.toml");
+    if (fs.existsSync(cargoPath)) {
+      const cargo = fs.readFileSync(cargoPath, "utf8");
+      const match = cargo.match(/name\s*=\s*["'](.+?)["']/);
+      if (match) return match[1];
+    }
+    return path.basename(cwd);
   } catch {
     return path.basename(cwd);
   }

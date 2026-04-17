@@ -183,6 +183,7 @@ const HELP_SECTIONS = (cfg) => [
       ["/pins",              "List pinned messages"],
       ["/pin [index]",       "Pin last or specific message"],
       ["/plugin [cmd]",      "Manage plugins"],
+      ["/trust [grant]",     "Check or grant trust to current repository"],
       ["/template <name>",   "Use prompt template"],
       ["/vacuum [opts]",     "Configure chat vacuum"],
       ["/alias",             "Show all command aliases"],

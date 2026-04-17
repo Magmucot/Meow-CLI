@@ -726,13 +726,19 @@ class Autopilot {
     this.recovery = new RecoveryStrategy();
     this.contextManager = new ContextManager(this.cfg.autopilot?.max_context_tokens || 120000);
 
+    const optimizer = new PromptOptimizer(this.cfg);
+    let finalTask = task;
+    if (this.cfg.prompt_optimizer?.enabled) {
+      finalTask = await optimizer.optimize(task);
+    }
+
     const originalSystem = this.messages[0]?.content || "";
     this.messages[0] = { role: "system", content: originalSystem + AUTOPILOT_SYSTEM_SUFFIX };
 
     this.messages.push({
       role: "user",
       content: [
-        `[AUTOPILOT TASK]`, ``, task, ``,
+        `[AUTOPILOT TASK]`, ``, finalTask, ``,
         `---`,
         `CWD: ${process.cwd()}`,
         `Time: ${new Date().toISOString()}`,

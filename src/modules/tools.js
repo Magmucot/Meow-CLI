@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { createTwoFilesPatch } from "diff";
-import { exec, execSync } from "child_process";
+import { exec, execFileSync, execSync } from "child_process";
 import { C, WARNING, SUCCESS, ERROR, MUTED, TEXT, TEXT_DIM, log, box, COLS, SHELL_TIMEOUT_MS } from "./ui.js";
 import { CONF_FILE, DATA_DIR, UNDO_FILE } from "./config.js";
 import { loadUndoState, saveUndoState } from "./persistence.js";
@@ -357,6 +357,18 @@ function describeFileChange(filePath) {
 }
 
 /**
+ * Truncates a preview string to keep prompts readable.
+ * @param {string} text - Text to truncate.
+ * @param {number} [maxChars=4000] - Character limit.
+ * @returns {string}
+ */
+function truncatePreview(text, maxChars = 4000) {
+  if (!text) return "";
+  if (text.length <= maxChars) return text;
+  return text.slice(0, maxChars) + "\n…[TRUNCATED]…";
+}
+
+/**
  * Gets a summary of staged git changes.
  * @param {number} [maxChars=6000] - Character limit.
  * @returns {string}
@@ -519,6 +531,15 @@ async function writeFile(p, content, cfg = {}) {
     const file = path.resolve(p);
     const existed = fs.existsSync(file);
     const old = existed ? fs.readFileSync(file, "utf8") : "";
+    const desc = describeFileChange(file);
+    const diff = createTwoFilesPatch(desc, desc, old, content, "", "", { context: 3 });
+
+    const approved = await confirmUser(
+      `Apply write_file to ${desc}?\n${TEXT_DIM}${truncatePreview(diff)}${C.reset}`,
+      cfg.auto_yes,
+      false
+    );
+    if (!approved) return `ℹ Cancelled write_file for ${desc}.`;
 
     const undoState = loadUndoState();
     undoState.push({ path: file, existed, content: old, time: Date.now() });
@@ -527,7 +548,6 @@ async function writeFile(p, content, cfg = {}) {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, content, "utf8");
 
-    const desc = describeFileChange(file);
     autoGitCommit(`update ${desc}`, cfg);
 
     return `✅ Written: ${desc} (${content.length} bytes)`;
@@ -576,6 +596,14 @@ async function patchFile(p, oldString, newString, cfg = {}) {
     }
 
     const patched = original.slice(0, index) + newString + original.slice(index + oldString.length);
+    const desc = describeFileChange(file);
+    const diff = createTwoFilesPatch(desc, desc, original, patched, "", "", { context: 3 });
+    const approved = await confirmUser(
+      `Apply patch_file to ${desc}?\n${TEXT_DIM}${truncatePreview(diff)}${C.reset}`,
+      cfg.auto_yes,
+      false
+    );
+    if (!approved) return `ℹ Cancelled patch_file for ${desc}.`;
 
     const undoState = loadUndoState();
     undoState.push({ path: file, existed: true, content: original, time: Date.now() });
@@ -584,7 +612,6 @@ async function patchFile(p, oldString, newString, cfg = {}) {
     fs.writeFileSync(file, patched, "utf8");
 
     const lineNum = original.slice(0, index).split("\n").length;
-    const desc = describeFileChange(file);
     autoGitCommit(`patch ${desc}`, cfg);
 
     return `✅ Patched: ${desc} (line ~${lineNum}, ${oldString.split("\n").length} lines → ${newString.split("\n").length} lines)`;
@@ -605,12 +632,11 @@ function grepSearch(pattern, searchPath, include, maxResults = 50) {
     if (!fs.existsSync(dir)) return `❌ Path not found: ${dir}`;
 
     try {
-      const parts = ["grep", "-rn", "--color=never"];
-      if (include) parts.push(`--include=${include}`);
-      parts.push("-E", JSON.stringify(pattern), JSON.stringify(dir));
+      const args = ["-rn", "--color=never"];
+      if (include) args.push(`--include=${include}`);
+      args.push("-E", pattern, dir);
 
-      const cmd = parts.join(" ");
-      const output = execSync(cmd, {
+      const output = execFileSync("grep", args, {
         encoding: "utf8",
         maxBuffer: 5 * 1024 * 1024,
         timeout: 10000,
@@ -692,6 +718,14 @@ function grepSearchJS(pattern, dir, include, maxResults) {
  * @returns {Promise<string>} Command output.
  */
 async function runShell(cmd, cfg = {}, env = process.env) {
+  const desc = describeShellCommand(cmd);
+  const approved = await confirmUser(
+    `Run shell command?\n${TEXT_DIM}${cmd}${C.reset}`,
+    cfg.auto_yes,
+    false
+  );
+  if (!approved) return `ℹ Cancelled run_shell: ${desc}`;
+
   const timeoutMs = Number.isFinite(SHELL_TIMEOUT_MS) && SHELL_TIMEOUT_MS > 0 ? SHELL_TIMEOUT_MS : 30000;
   return new Promise(resolve => {
     exec(
@@ -712,7 +746,6 @@ async function runShell(cmd, cfg = {}, env = process.env) {
         }
         if (err && err.code !== null && err.code !== undefined) output.push(`EXIT CODE: ${err.code}`);
 
-        const desc = describeShellCommand(cmd);
         autoGitCommit(`shell ${desc}`, cfg);
 
         resolve(output.join("\n\n") || "✅ Done (no output).");
@@ -726,8 +759,15 @@ async function runShell(cmd, cfg = {}, env = process.env) {
  * @param {Object} options - Request options.
  * @returns {Promise<string>} Response details.
  */
-async function httpRequest({ url, method = "GET", headers = {}, body = "", timeout_ms = 15000 }) {
+async function httpRequest({ url, method = "GET", headers = {}, body = "", timeout_ms = 15000 }, cfg = {}) {
   if (!url) return "❌ Error: url required";
+  const bodyPreview = body && method !== "GET" && method !== "HEAD" ? `\nBody: ${truncatePreview(body, 600)}` : "";
+  const approved = await confirmUser(
+    `Make HTTP request?\n${TEXT_DIM}${method} ${url}${bodyPreview}${C.reset}`,
+    cfg.auto_yes,
+    false
+  );
+  if (!approved) return `ℹ Cancelled http_request: ${method} ${url}`;
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeout_ms);
   try {
@@ -756,8 +796,14 @@ async function httpRequest({ url, method = "GET", headers = {}, body = "", timeo
  * @param {Object} options - Search options.
  * @returns {Promise<string>} Search results JSON.
  */
-async function webSearch({ query, max_results = 5 }) {
+async function webSearch({ query, max_results = 5 }, cfg = {}) {
   if (!query) return "❌ Error: query required";
+  const approved = await confirmUser(
+    `Run web search?\n${TEXT_DIM}query=${query}\nmax_results=${max_results}${C.reset}`,
+    cfg.auto_yes,
+    false
+  );
+  if (!approved) return `ℹ Cancelled web_search: ${query}`;
   const url = `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
   try {
     const res = await fetch(url, { headers: { "User-Agent": "meowcli/1.0" } });
@@ -815,8 +861,8 @@ async function executeTool(name, args, cfg, env = process.env) {
     case "ask_user":      return await askUser(args.question, cfg.auto_yes, args.default || "");
     case "confirm":       return String(await confirmUser(args.message, cfg.auto_yes, args.default));
     case "choose":        return await chooseUser(args.question, args.options, cfg.auto_yes, args.default_index);
-    case "http_request":  return await httpRequest(args);
-    case "web_search":    return await webSearch(args);
+    case "http_request":  return await httpRequest(args, cfg);
+    case "web_search":    return await webSearch(args, cfg);
     case "tool_chain":    return await toolChain(args.steps, cfg, env);
     case "delegate_task": {
       const { delegateTask } = await import("./agents/subagent.js");

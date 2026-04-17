@@ -1,7 +1,9 @@
 import fs from "fs";
 import path from "path";
 import { GLOBAL_MEOW_MD } from "./config.js";
-import { log, C, ACCENT, MUTED, TEXT, TEXT_DIM, box, COLS } from "./ui.js";
+import { log, C, ACCENT, MUTED, TEXT, TEXT_DIM, COLS } from "./ui.js";
+
+/** @typedef {{ source: "global" | "project", path: string, content: string }} ContextPart */
 
 /** @type {string} Default filename for local project context */
 const LOCAL_MEOW_MD = "MEOW.md";
@@ -13,44 +15,119 @@ const MAX_CONTEXT_SIZE = 50000;
 const MAX_INCLUDE_DEPTH = 3;
 
 /**
+ * Returns the canonical path for an existing filesystem entry.
+ * Symlinks are resolved to enforce root boundaries correctly.
+ *
+ * @param {string} targetPath
+ * @returns {string}
+ */
+function getRealPath(targetPath) {
+  return fs.realpathSync(targetPath);
+}
+
+/**
+ * Checks whether a candidate path is inside an allowed root directory.
+ * Comparison is performed on canonical paths to prevent symlink escapes.
+ *
+ * @param {string} rootPath
+ * @param {string} candidatePath
+ * @returns {boolean}
+ */
+function isPathWithinRoot(rootPath, candidatePath) {
+  const rootReal = getRealPath(rootPath);
+  const candidateReal = getRealPath(candidatePath);
+  const rel = path.relative(rootReal, candidateReal);
+
+  return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
+}
+
+/**
  * Recursively resolves !include directives in context files.
+ *
  * @param {string} content - Raw file content.
  * @param {string} basePath - Directory of the current file.
  * @param {number} [depth=0] - Current recursion depth.
+ * @param {string} [allowedRoot=basePath] - Root directory that includes must stay within.
+ * @param {Set<string>} [seen=new Set()] - Canonical paths already included.
  * @returns {string} Content with inclusions resolved.
  */
-function resolveIncludes(content, basePath, depth = 0) {
-  if (depth >= MAX_INCLUDE_DEPTH) return content;
+function resolveIncludes(
+  content,
+  basePath,
+  depth = 0,
+  allowedRoot = basePath,
+  seen = new Set(),
+) {
+  if (depth >= MAX_INCLUDE_DEPTH) {
+    return content;
+  }
 
-  return content.replace(INCLUDE_RE, (match, includePath) => {
-    const resolved = path.resolve(basePath, includePath.trim());
+  const rootReal = getRealPath(allowedRoot);
+
+  return content.replace(INCLUDE_RE, (_match, rawIncludePath) => {
+    const includePath = rawIncludePath.trim();
+    const resolved = path.resolve(basePath, includePath);
+
     try {
       if (!fs.existsSync(resolved)) {
-        return `<!-- Include not found: ${includePath.trim()} -->`;
+        return `<!-- Include not found: ${includePath} -->`;
       }
-      const included = fs.readFileSync(resolved, "utf8");
-      return resolveIncludes(included, path.dirname(resolved), depth + 1);
-    } catch (e) {
-      return `<!-- Include error: ${e.message} -->`;
+
+      if (!isPathWithinRoot(rootReal, resolved)) {
+        return `<!-- Include blocked (outside context root): ${includePath} -->`;
+      }
+
+      const resolvedReal = getRealPath(resolved);
+      if (seen.has(resolvedReal)) {
+        return `<!-- Include skipped (cycle detected): ${includePath} -->`;
+      }
+
+      const included = fs.readFileSync(resolvedReal, "utf8");
+      const nextSeen = new Set(seen);
+      nextSeen.add(resolvedReal);
+
+      return resolveIncludes(
+        included,
+        path.dirname(resolvedReal),
+        depth + 1,
+        rootReal,
+        nextSeen,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return `<!-- Include error: ${message} -->`;
     }
   });
 }
 
 /**
  * Loads and processes a context file.
+ *
  * @param {string} filePath - Path to the file.
  * @returns {string|null} Processed content or null.
  */
 function loadContextFile(filePath) {
   try {
-    if (!fs.existsSync(filePath)) return null;
-    let content = fs.readFileSync(filePath, "utf8").trim();
-    if (!content) return null;
+    if (!fs.existsSync(filePath)) {
+      return null;
+    }
 
-    content = resolveIncludes(content, path.dirname(filePath));
+    const fileReal = getRealPath(filePath);
+    let content = fs.readFileSync(fileReal, "utf8").trim();
+    if (!content) {
+      return null;
+    }
+
+    content = resolveIncludes(
+      content,
+      path.dirname(fileReal),
+      0,
+      path.dirname(fileReal),
+      new Set([fileReal]),
+    );
 
     if (content.length > MAX_CONTEXT_SIZE) {
-      content = content.slice(0, MAX_CONTEXT_SIZE) + "\n\n... [TRUNCATED]";
+      content = `${content.slice(0, MAX_CONTEXT_SIZE)}\n\n... [TRUNCATED]`;
     }
 
     return content;
@@ -61,9 +138,11 @@ function loadContextFile(filePath) {
 
 /**
  * Loads all relevant project context (global and local).
- * @returns {Array<Object>} List of context parts with source, path, and content.
+ *
+ * @returns {ContextPart[]} List of context parts with source, path, and content.
  */
 function loadProjectContext() {
+  /** @type {ContextPart[]} */
   const parts = [];
 
   const globalCtx = loadContextFile(GLOBAL_MEOW_MD);
@@ -90,18 +169,25 @@ function loadProjectContext() {
 
 /**
  * Builds a complete system prompt by appending project context.
+ *
  * @param {string} basePrompt - Initial system prompt.
- * @param {Array<Object>|null} [contextParts=null] - Pre-loaded context parts.
+ * @param {ContextPart[] | null} [contextParts=null] - Pre-loaded context parts.
  * @returns {string} Final system prompt.
  */
 function buildSystemPrompt(basePrompt, contextParts = null) {
   const parts = contextParts ?? loadProjectContext();
-  if (parts.length === 0) return basePrompt;
+  if (parts.length === 0) {
+    return basePrompt;
+  }
 
-  const contextBlock = parts.map(p => {
-    const label = p.source === "global" ? "Global Rules" : "Project Context";
-    return `\n\n═══ ${label} (${p.source}: ${path.basename(p.path)}) ═══\n${p.content}`;
-  }).join("");
+  const contextBlock = parts
+    .map((part) => {
+      const label =
+        part.source === "global" ? "Global Rules" : "Project Context";
+
+      return `\n\n═══ ${label} (${part.source}: ${path.basename(part.path)}) ═══\n${part.content}`;
+    })
+    .join("");
 
   return basePrompt + contextBlock;
 }
@@ -118,22 +204,32 @@ function printContext() {
 
   if (parts.length === 0) {
     console.log(`  ${MUTED}No MEOW.md found${C.reset}`);
-    console.log(`  ${TEXT_DIM}Create ${path.resolve(LOCAL_MEOW_MD)} or ${GLOBAL_MEOW_MD}${C.reset}`);
+    console.log(
+      `  ${TEXT_DIM}Create ${path.resolve(LOCAL_MEOW_MD)} or ${GLOBAL_MEOW_MD}${C.reset}`,
+    );
   } else {
     for (const part of parts) {
-      const size = part.content.length;
-      const lines = part.content.split("\n").length;
-      const tokens = Math.ceil(size / 3.5);
-      console.log(`  ${TEXT}${part.source}${C.reset} ${MUTED}${part.path}${C.reset}`);
+      const linesList = part.content.split("\n");
+      const lines = linesList.length;
+      const tokens = Math.ceil(part.content.length / 3.5);
+
+      console.log(
+        `  ${TEXT}${part.source}${C.reset} ${MUTED}${part.path}${C.reset}`,
+      );
       console.log(`  ${TEXT_DIM}${lines} lines, ~${tokens} tokens${C.reset}`);
 
-      const preview = part.content.split("\n").slice(0, 5);
-      for (const line of preview) {
-        console.log(`  ${MUTED}┃${C.reset} ${TEXT_DIM}${line.slice(0, COLS - 8)}${C.reset}`);
+      for (const line of linesList.slice(0, 5)) {
+        console.log(
+          `  ${MUTED}┃${C.reset} ${TEXT_DIM}${line.slice(0, COLS - 8)}${C.reset}`,
+        );
       }
-      if (part.content.split("\n").length > 5) {
-        console.log(`  ${MUTED}┃${C.reset} ${MUTED}… +${lines - 5} more lines${C.reset}`);
+
+      if (lines > 5) {
+        console.log(
+          `  ${MUTED}┃${C.reset} ${MUTED}… +${lines - 5} more lines${C.reset}`,
+        );
       }
+
       console.log("");
     }
   }
@@ -145,15 +241,32 @@ function printContext() {
 
 /**
  * Prepares the local context file for editing.
+ *
  * @param {string|null} [editor=null] - Command to open the editor.
- * @returns {Object} Object containing the editor command and file path.
+ * @returns {{ editor: string, path: string }} Object containing the editor command and file path.
  */
 function editContext(editor = null) {
   const localPath = path.resolve(process.cwd(), LOCAL_MEOW_MD);
   const editorCmd = editor || process.env.EDITOR || process.env.VISUAL || "nano";
 
   if (!fs.existsSync(localPath)) {
-    const template = `# Project Context for Meow CLI\n\n## Project Description\n<!-- Describe your project here -->\n\n## Architecture\n<!-- Key architecture decisions -->\n\n## Coding Standards\n<!-- Your coding conventions -->\n\n## Important Files\n<!-- Key files the AI should know about -->\n\n## Rules\n<!-- Specific rules for the AI to follow -->\n`;
+    const template = `# Project Context for Meow CLI
+
+## Project Description
+<!-- Describe your project here -->
+
+## Architecture
+<!-- Key architecture decisions -->
+
+## Coding Standards
+<!-- Your coding conventions -->
+
+## Important Files
+<!-- Key files the AI should know about -->
+
+## Rules
+<!-- Specific rules for the AI to follow -->
+`;
     fs.writeFileSync(localPath, template, "utf8");
     log.ok(`Created ${localPath}`);
   }

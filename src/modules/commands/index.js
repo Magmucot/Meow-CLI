@@ -16,6 +16,7 @@ import { handleSessions } from "./sessions.js";
 import { handleCost } from "./cost.js";
 import { handleCompact } from "./compact.js";
 import { handleInit } from "./init.js";
+import { commands as optimizeCommands } from "./optimize.js";
 import {
   handleLead, handleDelegate, handleMemory, handlePair,
   handlePreview, handleCI, handleAudit, handleIncognito, handleRouting,

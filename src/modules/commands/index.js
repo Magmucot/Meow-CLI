@@ -45,6 +45,7 @@ const handleGeneral = makeHandler(generalCommands);
 const handleAssistant = makeHandler(assistantCommands);
 const handleAutopilot = makeHandler(autopilotCommands);
 const handleChat = makeHandler(chatCommands);
+const handleOptimize = makeHandler(optimizeCommands);
 
 /**
  * List of all registered command handlers.
@@ -77,6 +78,7 @@ const commandHandlers = [
   handleAudit,
   handleIncognito,
   handleRouting,
+  handleOptimize,
   handleMisc,
 ];
 

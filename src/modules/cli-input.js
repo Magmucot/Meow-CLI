@@ -5,7 +5,7 @@ import { C, MUTED, ACCENT, TEXT, TEXT_DIM, SUCCESS, AI_GRADIENT, stripAnsi, COLS
  * List of available commands for tab-completion.
  * @type {Array<string>}
  */
-const COMMANDS = [
+export const COMMANDS = [
   // Most common first — these appear first in tab-complete
   "/help", "?", "/clear", "/exit", "/stats", "/config",
   "/ap", "/autopilot",

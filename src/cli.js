@@ -146,6 +146,15 @@ async function main() {
     if (commandResult?.handled && !commandResult?.continue) continue;
     if (commandResult?.input !== undefined) input = commandResult.input;
 
+    // Prompt Optimization
+    const optimizer = new PromptOptimizer(ctx.cfg);
+    if (ctx.cfg.prompt_optimizer?.enabled && !input.startsWith("/")) {
+      const optimized = await optimizer.optimize(input);
+      if (optimized !== input) {
+        input = optimized;
+      }
+    }
+
     // "Did you mean?" — detect mistyped slash commands before sending to AI
     if (input.startsWith("/") && !commandResult?.handled) {
       const suggestion = suggestCommand(input);

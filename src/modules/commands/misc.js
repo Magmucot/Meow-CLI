@@ -10,6 +10,7 @@ import {
   parseKv,
   saveHistoryState
 } from "../../core.js";
+import { getSandbox } from "../security/sandbox.js";
 
 /**
  * Handles miscellaneous commands like /alias, /export, /import, and /template.
@@ -18,6 +19,7 @@ import {
  * @returns {Promise<Object|null>}
  */
 const handleMisc = async (ctx, input) => {
+  const sandbox = getSandbox();
   if (input === "/alias") {
     console.log(""); console.log(`  ${ACCENT}${C.bold}◆ Aliases${C.reset}`);
     console.log(`  ${MUTED}${"─".repeat(35)}${C.reset}`);
@@ -30,6 +32,8 @@ const handleMisc = async (ctx, input) => {
   if (input.startsWith("/export ")) {
     const file = input.slice(8).trim();
     if (!file) { log.err("Specify file path."); return { handled: true }; }
+    const check = sandbox.isPathAllowed(file);
+    if (!check.allowed) { log.err(check.reason); return { handled: true }; }
     try { fs.writeFileSync(file, JSON.stringify(ctx.historyState, null, 2)); log.ok(`History exported to ${file}`); }
     catch (e) { log.err(`Export failed: ${e.message}`); }
     return { handled: true };
@@ -38,6 +42,8 @@ const handleMisc = async (ctx, input) => {
   if (input.startsWith("/import ")) {
     const file = input.slice(8).trim();
     if (!file) { log.err("Specify file path."); return { handled: true }; }
+    const check = sandbox.isPathAllowed(file);
+    if (!check.allowed) { log.err(check.reason); return { handled: true }; }
     try {
       const data = JSON.parse(fs.readFileSync(file, "utf8"));
       if (data.chats) {

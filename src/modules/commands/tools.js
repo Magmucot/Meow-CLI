@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { log, listDir, readFile, runShell, loadUndoState, saveUndoState } from "../../core.js";
+import { getSandbox } from "../security/sandbox.js";
 
 /**
  * Handles /undo, /list, /read, and /shell commands.
@@ -9,6 +10,7 @@ import { log, listDir, readFile, runShell, loadUndoState, saveUndoState } from "
  * @returns {Promise<Object|null>}
  */
 const handleTools = async (ctx, input) => {
+  const sandbox = getSandbox();
   if (input.startsWith("/undo")) {
     const parts = input.split(" ");
     const count = parts[1] ? parseInt(parts[1], 10) : 1;
@@ -38,18 +40,24 @@ const handleTools = async (ctx, input) => {
 
   if (input === "/list" || input.startsWith("/list ")) {
     const target = input.slice(5).trim() || ".";
+    const check = sandbox.isPathAllowed(target);
+    if (!check.allowed) { log.err(check.reason); return { handled: true }; }
     console.log(listDir(target));
     return { handled: true };
   }
   if (input === "/read" || input.startsWith("/read ")) {
     const target = input.slice(5).trim();
     if (!target) { log.err("Usage: /read <file>"); return { handled: true }; }
+    const check = sandbox.isPathAllowed(target);
+    if (!check.allowed) { log.err(check.reason); return { handled: true }; }
     console.log(readFile(target));
     return { handled: true };
   }
   if (input === "/shell" || input.startsWith("/shell ")) {
     const cmd = input.slice(6).trim();
     if (!cmd) { log.err("Usage: /shell <command>"); return { handled: true }; }
+    const check = sandbox.isCommandAllowed(cmd);
+    if (!check.allowed) { log.err(check.reason); return { handled: true }; }
     console.log(await runShell(cmd, ctx.cfg.auto_yes));
     return { handled: true };
   }

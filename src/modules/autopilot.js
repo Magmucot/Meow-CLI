@@ -5,10 +5,11 @@ import {
   WARNING, TOOL_CLR, TEXT_DIM, AI_CLR, INFO,
   log, Spinner, renderMD, COLS, box
 } from "./ui.js";
-import { LOG_DIR } from "./config.js";
+import { LOG_DIR, t } from "./config.js";
 import { formatDuration } from "./utils.js";
 import { callApi } from "./api.js";
 import { executeTool, runShell } from "./tools.js";
+import { getTrustManager, TRUST_LEVEL } from "./trust.js";
 
 /** @type {Object} Autopilot execution phases */
 const PHASE = {
@@ -738,6 +739,13 @@ class Autopilot {
         `Execute autonomously. Start with 📋 PLAN: → then EXECUTE → VERIFY → COMPLETE.`,
       ].join("\n"),
     });
+
+    const trust = getTrustManager();
+    const status = await trust.checkStatus();
+    if (status !== TRUST_LEVEL.TRUSTED) {
+      log.err(t(this.cfg, "trust_readonly_warning"));
+      return { error: "Untrusted repository" };
+    }
 
     const origAutoYes = this.cfg.auto_yes;
     this.cfg.auto_yes = true;

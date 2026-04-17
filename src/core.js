@@ -15,6 +15,7 @@ export * from "./modules/autopilot.js";
 export * from "./modules/screens.js";
 export * from "./modules/plugins.js";
 export * from "./modules/permissions.js";
+export * from "./modules/trust.js";
 export * from "./modules/project-context.js";
 export * from "./modules/checkpoints.js";
 export * from "./modules/sessions.js";

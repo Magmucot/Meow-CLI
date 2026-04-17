@@ -5,7 +5,7 @@ import { C, MUTED, ACCENT, TEXT, TEXT_DIM, SUCCESS, AI_GRADIENT, stripAnsi, COLS
  * List of available commands for tab-completion.
  * @type {Array<string>}
  */
-const COMMANDS = [
+export const COMMANDS = [
   // Most common first — these appear first in tab-complete
   "/help", "?", "/clear", "/exit", "/stats", "/config",
   "/ap", "/autopilot",
@@ -130,6 +130,18 @@ function redraw(promptPrefix, buf, cursorIdx, prevRows, cols) {
 }
 
 /**
+ * Sanitizes user input to prevent injection attacks and remove control characters.
+ * @param {string} input - Raw user input.
+ * @returns {string} Sanitized input.
+ */
+function sanitizeInput(input) {
+  if (typeof input !== "string") return "";
+  // Remove null bytes and other dangerous control characters
+  // Keep \n, \r, \t
+  return input.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").trim();
+}
+
+/**
  * Reads a single-line input from the terminal with:
  * - Left/Right arrow: cursor movement
  * - Up/Down arrow: history navigation
@@ -182,7 +194,7 @@ const readMultilineInput = (promptTitle) => new Promise(resolve => {
       process.stdout.write("\n" + MUTED("└") + "\n");
       cleanup();
 
-      const result = buffer.trim();
+      const result = sanitizeInput(buffer);
       // Save to history (avoid duplicates at top)
       if (result && (inputHistory.length === 0 || inputHistory[0] !== result)) {
         inputHistory.unshift(result);

@@ -8,6 +8,7 @@ import { getModelPrice } from "../cost-tracker.js";
 import { formatDuration } from "../utils.js";
 import { getMemoryStore } from "../memory/rag.js";
 import { DATA_DIR } from "../config.js";
+import { getSandbox } from "../security/sandbox.js";
 
 const LEAD_LOG_DIR = path.join(DATA_DIR, "lead-dev-logs");
 
@@ -32,14 +33,17 @@ class ProjectAnalyzer {
     this.lintCmd = null;
     this.buildCmd = null;
     this.typeCheckCmd = null;
+    this._cache = new Map();
   }
 
   detect() {
+    if (this._cache.has("detected")) return this;
     this.projectType = this._detectProjectType();
     this.testCmd = this._findCommand("test");
     this.lintCmd = this._findCommand("lint");
     this.buildCmd = this._findCommand("build");
     this.typeCheckCmd = this._findTypeCheck();
+    this._cache.set("detected", true);
     return this;
   }
 
@@ -94,7 +98,8 @@ class ProjectAnalyzer {
     const cmd = commands[gate];
     if (!cmd) return { gate, passed: true, skipped: true, output: "No command configured" };
     try {
-      const output = execSync(cmd, { encoding: "utf8", timeout: 60000, cwd: this.cwd, stdio: 'pipe' }).trim();
+      const sandbox = getSandbox();
+      const output = sandbox.safeExec(cmd, { cwd: this.cwd, stdio: 'pipe' }).trim();
       return { gate, passed: true, skipped: false, output: output.slice(0, 1000) };
     } catch (e) {
       return { gate, passed: false, skipped: false, output: (e.stdout || e.stderr || e.message || "").slice(0, 1000) };
@@ -129,7 +134,8 @@ class GitAnalyzer {
   getHotFiles(limit = 10) {
     if (!this.hasGit) return [];
     try {
-      const output = execSync("git log --format='' --name-only | sort | uniq -c | sort -rn | head -n " + limit, { encoding: "utf8", cwd: this.cwd });
+      const sandbox = getSandbox();
+      const output = sandbox.safeExec("git log --format='' --name-only | sort | uniq -c | sort -rn | head -n " + limit, { cwd: this.cwd });
       return output.trim().split("\n").map(line => {
         const [count, file] = line.trim().split(/\s+/);
         return { file, changes: parseInt(count, 10) };
@@ -140,14 +146,16 @@ class GitAnalyzer {
   getRecentChanges(days = 7) {
     if (!this.hasGit) return "";
     try {
-      return execSync(`git log --since="${days} days ago" --oneline --stat`, { encoding: "utf8", cwd: this.cwd }).slice(0, 2000);
+      const sandbox = getSandbox();
+      return sandbox.safeExec(`git log --since="${days} days ago" --oneline --stat`, { cwd: this.cwd }).slice(0, 2000);
     } catch { return ""; }
   }
 
   getUncommittedChanges() {
     if (!this.hasGit) return "";
     try {
-      return execSync("git status --short", { encoding: "utf8", cwd: this.cwd }).trim();
+      const sandbox = getSandbox();
+      return sandbox.safeExec("git status --short", { cwd: this.cwd }).trim();
     } catch { return ""; }
   }
 }
@@ -218,7 +226,7 @@ const TASK_CATEGORIES = [
  * Uses AI to suggest next tasks based on deep project context.
  */
 async function suggestNextTasks(cfg, analyzer, options = {}) {
-  const { context = "", focus = "" } = options;
+  const { context = "", focus = "", failedTasks = [] } = options;
   const git = new GitAnalyzer();
   const intel = new CodeIntelligence();
   
@@ -247,6 +255,7 @@ async function suggestNextTasks(cfg, analyzer, options = {}) {
     `Project: ${analyzer.projectType}`,
     `Structure: ${structure.join(", ").slice(0, 500)}...`,
     failedGates.length > 0 ? `FAILED GATES: ${failedGates.map(g => g.gate).join(", ")}` : "All gates pass.",
+    failedTasks.length > 0 ? `PREVIOUSLY FAILED TASKS: ${failedTasks.map(t => t.task).join("; ")} (Avoid repeating these without a new approach)` : "",
     hotFiles.length > 0 ? `HOT FILES (frequent changes): ${hotFiles.map(f => f.file).join(", ")}` : "",
     uncommitted ? `UNCOMMITTED CHANGES:\n${uncommitted}` : "",
     todoItems.length > 0 ? `TODO/FIXME Items: ${todoItems.length} found` : "",
@@ -324,7 +333,11 @@ class LeadDevSession {
         console.log(`\n  ${ACCENT2}${C.bold}🔄 Round ${round}/${this.maxTasks}${C.reset} ${MUTED}— Deep Analysis...${C.reset}`);
         
         const context = round === 1 ? initialContext : `Completed: ${this.tasksCompleted.slice(-2).map(t => t.task).join("; ")}`;
-        const suggestions = await suggestNextTasks(this.cfg, this.analyzer, { context, focus: this.focusArea });
+        const suggestions = await suggestNextTasks(this.cfg, this.analyzer, { 
+          context, 
+          focus: this.focusArea,
+          failedTasks: this.tasksFailed 
+        });
 
         if (!suggestions || suggestions.length === 0) {
           log.ok("Project state is optimal. No further suggestions.");
@@ -393,6 +406,9 @@ class LeadDevSession {
         if (!this.autoMode && round < this.maxTasks) {
           const cont = await this._askContinue();
           if (!cont) break;
+        } else if (this.autoMode && round < this.maxTasks) {
+          // Small delay for reliability in auto-mode
+          await new Promise(r => setTimeout(r, 1000));
         }
       }
     } catch (e) {

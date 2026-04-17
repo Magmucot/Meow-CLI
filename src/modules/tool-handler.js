@@ -1,11 +1,18 @@
 import { TOOL_CLR, C, MUTED, TEXT_DIM, ERROR, WARNING, COLS, log } from "./ui.js";
 import { executeTool } from "./tools.js";
 import { askPermission, getPermissionStore } from "./permissions.js";
+import { getTrustManager, TRUST_LEVEL } from "./trust.js";
+import { t } from "./config.js";
 
 const READONLY_TOOLS = new Set(["list_dir", "read_file", "grep_search", "git_diff", "git_log", "git_status"]);
 
 async function handleTools(msg, messages, cfg, checkpointMgr = null) {
   if (!msg.tool_calls || msg.tool_calls.length === 0) return false;
+
+  // Trust check
+  const trust = getTrustManager();
+  const status = await trust.checkStatus();
+  const isTrusted = status === TRUST_LEVEL.TRUSTED;
 
   messages.push(msg);
   const count = msg.tool_calls.length;
@@ -26,10 +33,25 @@ async function handleTools(msg, messages, cfg, checkpointMgr = null) {
 
   console.log(`\n  ${TOOL_CLR("┃")} ${TOOL_CLR.bold("Tools")} ${MUTED("(" + count + " call" + (count > 1 ? "s" : "") + ")")}`);
 
+  if (!isTrusted) {
+    console.log(`  ${MUTED("┃")}   ${WARNING(t(cfg, "trust_readonly_warning"))}`);
+  }
+
   const readCalls = [], writeCalls = [];
   for (const call of msg.tool_calls) {
     if (READONLY_TOOLS.has(call.function.name)) readCalls.push(call);
     else writeCalls.push(call);
+  }
+
+  // Handle write calls in untrusted repo
+  if (!isTrusted && writeCalls.length > 0) {
+    for (const call of writeCalls) {
+      const res = `❌ Untrusted repository: ${call.function.name} is blocked in read-only mode. Use /trust to enable.`;
+      console.log(`  ${MUTED("┃")}   ${ERROR(res)}`);
+      messages.push({ role: "tool", tool_call_id: call.id, content: res });
+    }
+    // Filter out write calls from being executed
+    writeCalls.length = 0;
   }
 
   if (readCalls.length > 1) {

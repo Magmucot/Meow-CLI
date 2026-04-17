@@ -7,6 +7,7 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import os from "os";
+import { execSync } from "child_process";
 import { DATA_DIR } from "../config.js";
 import { log, C, ACCENT, MUTED, TEXT_DIM, SUCCESS, ERROR, WARNING } from "../ui.js";
 
@@ -22,6 +23,7 @@ class WorkspaceSandbox {
    */
   constructor(workspaceRoot = process.cwd()) {
     this.root = path.resolve(workspaceRoot);
+    this.allowedPaths = new Set([this.root]);
     this.blockedPatterns = [
       /\.ssh/i, /\.gnupg/i, /\.aws\/credentials/i, /\.env(?:\.local)?$/i,
       /id_rsa/, /id_ed25519/, /\.pem$/, /\.key$/,
@@ -29,6 +31,8 @@ class WorkspaceSandbox {
       /\.bash_history/, /\.zsh_history/,
       /\.node_repl_history/, /\.npmrc$/, /\.yarnrc$/,
       /config\.json$/i, // Generic config files often contain keys
+      /\.dockercfg$/, /\.docker\/config\.json$/,
+      /\.netrc$/, /\.pypirc$/,
     ];
     this.blockedCommands = [
       /rm\s+(-rf?|--recursive)\s+\//,
@@ -38,6 +42,12 @@ class WorkspaceSandbox {
       /chmod\s+777\s+\//, /chown\s+.* \//,
       /kill\s+-9\s+1/, /shutdown/, /reboot/,
       /passwd\s+root/, /visudo/,
+      /nc\s+-e/, /nc\s+.*-c\s+bash/, /netcat\s+-e/,
+      /python\s+-c\s+.*import\s+os,pty,socket/,
+      /perl\s+-e\s+.*exec\s+"\/bin\/sh"/,
+      /eval\s+.*\$\(.*\)/, /exec\s+.*>/,
+      /alias\s+.*=/, /unalias\s+/,
+      /history\s+-c/, /export\s+.*=/,
     ];
     this.blockedEnvVars = [
       /API_KEY/i, /SECRET/i, /PASSWORD/i, /TOKEN/i, /AUTH/i,
@@ -62,11 +72,12 @@ class WorkspaceSandbox {
         realPath = resolved;
       }
 
-      // Check if it's within workspace or tmp
+      // Check if it's within workspace or tmp or explicitly allowed paths
       const isUnderRoot = realPath.startsWith(this.root + path.sep) || realPath === this.root;
       const isUnderTmp = realPath.startsWith(os.tmpdir());
+      const isExplicitlyAllowed = Array.from(this.allowedPaths).some(p => realPath.startsWith(p + path.sep) || realPath === p);
 
-      if (!isUnderRoot && !isUnderTmp) {
+      if (!isUnderRoot && !isUnderTmp && !isExplicitlyAllowed) {
         return { allowed: false, reason: `Access outside workspace: ${realPath}` };
       }
 
@@ -112,6 +123,14 @@ class WorkspaceSandbox {
   }
 
   /**
+   * Adds a path to the allowed list.
+   * @param {string} p - Path to allow.
+   */
+  allowPath(p) {
+    this.allowedPaths.add(path.resolve(p));
+  }
+
+  /**
    * Generic validation for tool calls.
    * @param {string} toolName - Name of the tool.
    * @param {Object} args - Tool arguments.
@@ -138,6 +157,30 @@ class WorkspaceSandbox {
       default:
         return { allowed: true };
     }
+  }
+
+  /**
+   * Safely executes a command within the sandbox.
+   * @param {string} cmd - Command to execute.
+   * @param {Object} [options={}] - Execution options.
+   * @returns {string} Command output.
+   * @throws {Error} If command is blocked or execution fails.
+   */
+  safeExec(cmd, options = {}) {
+    const check = this.isCommandAllowed(cmd);
+    if (!check.allowed) {
+      throw new Error(`Security Block: ${check.reason}`);
+    }
+
+    const safeEnv = this.filterEnv(options.env || process.env);
+    
+    return execSync(cmd, {
+      ...options,
+      env: safeEnv,
+      encoding: "utf8",
+      maxBuffer: 10 * 1024 * 1024,
+      timeout: options.timeout || 60000,
+    }).toString();
   }
 }
 

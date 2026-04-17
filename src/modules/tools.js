@@ -1032,6 +1032,10 @@ async function executeTool(name, args, cfg, env = process.env) {
     case "read_file":     return readFile(args.path, args.start_line, args.end_line);
     case "write_file":    return await writeFile(args.path, args.content, cfg);
     case "patch_file":    return await patchFile(args.path, args.old_string, args.new_string, cfg);
+    case "move_file":     return await moveFile(args.from, args.to, cfg);
+    case "copy_file":     return await copyFile(args.from, args.to, cfg);
+    case "delete_file":   return await deleteFile(args.path, args.recursive, cfg);
+    case "get_system_info": return getSystemInfo();
     case "grep_search":   return grepSearch(args.pattern, args.path, args.include, args.max_results);
     case "run_shell":     return await runShell(args.cmd, cfg, env);
     case "ask_user":      return await askUser(args.question, cfg.auto_yes, args.default || "");

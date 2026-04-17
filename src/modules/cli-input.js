@@ -194,7 +194,7 @@ const readMultilineInput = (promptTitle) => new Promise(resolve => {
       process.stdout.write("\n" + MUTED("└") + "\n");
       cleanup();
 
-      const result = buffer.trim();
+      const result = sanitizeInput(buffer);
       // Save to history (avoid duplicates at top)
       if (result && (inputHistory.length === 0 || inputHistory[0] !== result)) {
         inputHistory.unshift(result);

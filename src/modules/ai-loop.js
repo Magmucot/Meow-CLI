@@ -12,12 +12,16 @@ import { StreamRenderer, renderNonStreaming } from "./ui-render.js";
 export async function runAiInteraction(ctx, effectiveCfg, { useStreaming, checkpointMgr, costTracker, allImages }) {
   const spinnerText = allImages.length > 0 ? "Analyzing image" : "Thinking";
   const spinner = new Spinner(spinnerText);
+  const MAX_TOOL_ROUNDS = 15;
+  const originalMessageCount = ctx.messages.length;
   
   try {
     let toolRound = 0;
-    while (true) {
+    while (toolRound < MAX_TOOL_ROUNDS) {
       let data;
-      if (useStreaming && toolRound === 0) {
+      const isFirstRoundStreaming = useStreaming && toolRound === 0;
+
+      if (isFirstRoundStreaming) {
         const renderer = new StreamRenderer();
         spinner.start();
         data = await callApiStream(ctx.messages, effectiveCfg, (chunk) => {
@@ -27,50 +31,40 @@ export async function runAiInteraction(ctx, effectiveCfg, { useStreaming, checkp
           }
         });
         spinner.stop();
-        const msg = data.choices[0].message;
-        
-        if (msg.tool_calls && msg.tool_calls.length > 0) {
-          renderer.finish();
-          const toolLoop = await handleTools(msg, ctx.messages, ctx.cfg, checkpointMgr);
-          if (toolLoop) { 
-            toolRound++; 
-            spinner.update(`Processing (round ${toolRound + 1})`); 
-            continue; 
-          }
-        }
-        
         renderer.finish();
-        if (data.usage) {
-          costTracker.record(data.usage, effectiveCfg.model);
-          const costStr = costTracker.formatInline(data.usage, effectiveCfg.model);
-          log.dim(costStr);
-        }
-        ctx.messages.push(msg);
-        break;
       } else {
         if (!spinner.timer) spinner.start();
         data = await callApi(ctx.messages, effectiveCfg);
-        const msg = data.choices[0].message;
-        const toolLoop = await handleTools(msg, ctx.messages, ctx.cfg, checkpointMgr);
-        
-        if (toolLoop) { 
-          toolRound++; 
-          spinner.update(`Processing (round ${toolRound + 1})`); 
-          continue; 
-        }
-        
         spinner.stop();
-        renderNonStreaming(msg);
-        
-        if (data.usage) {
-          costTracker.record(data.usage, effectiveCfg.model);
-          const costStr = costTracker.formatInline(data.usage, effectiveCfg.model);
-          log.dim(costStr);
+        if (toolRound > 0 || !useStreaming) {
+          renderNonStreaming(data.choices[0].message);
         }
-        ctx.messages.push(msg);
-        break;
       }
+
+      const msg = data.choices[0].message;
+      
+      if (data.usage) {
+        costTracker.record(data.usage, effectiveCfg.model);
+        const costStr = costTracker.formatInline(data.usage, effectiveCfg.model);
+        log.dim(costStr);
+      }
+
+      const toolLoop = await handleTools(msg, ctx.messages, ctx.cfg, checkpointMgr);
+      
+      if (toolLoop) { 
+        toolRound++; 
+        spinner.update(`Processing (round ${toolRound + 1})`); 
+        continue; 
+      }
+      
+      ctx.messages.push(msg);
+      break;
     }
+
+    if (toolRound >= MAX_TOOL_ROUNDS) {
+      log.warn("Maximum tool rounds reached. Stopping interaction.");
+    }
+
     ctx.saveState();
     ctx.sessionMgr.save({ 
       model: ctx.cfg.model, 
@@ -80,7 +74,10 @@ export async function runAiInteraction(ctx, effectiveCfg, { useStreaming, checkp
     });
   } catch (e) { 
     spinner.stop(); 
-    log.err(e.message); 
-    ctx.messages.pop(); 
+    log.err(`AI Loop Error: ${e.message}`); 
+    // Rollback message stack to prevent corrupted context
+    while (ctx.messages.length > originalMessageCount) {
+      ctx.messages.pop();
+    }
   }
 }

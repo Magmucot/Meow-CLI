@@ -194,8 +194,9 @@ function buildSystemPrompt(basePrompt, contextParts = null) {
 
   const contextBlock = parts
     .map((part) => {
-      const label =
-        part.source === "global" ? "Global Rules" : "Project Context";
+      let label = "Project Context";
+      if (part.source === "global") label = "Global Rules";
+      if (path.basename(part.path) === "project.meow") label = "Project Index (Lead-Dev)";
 
       return `\n\n═══ ${label} (${part.source}: ${path.basename(part.path)}) ═══\n${part.content}`;
     })

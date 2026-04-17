@@ -68,7 +68,7 @@ class TrustManager {
    * Fetches global trust list from GitHub.
    */
   async fetchGlobalTrust() {
-    const url = DEFAULT_CONFIG.trust_url || "https://raw.githubusercontent.com/meowcli/meow-cli/main/globals/trust/trust.meow";
+    const url = DEFAULT_CONFIG.trust_url || "https://raw.githubusercontent.com/cons0leweb/Meow-CLI/refs/heads/master/globals/trust/trust.meow";
     try {
       const response = await fetch(url);
       if (!response.ok) return;

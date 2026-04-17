@@ -5,6 +5,7 @@ import {
 } from "./ui.js";
 import { t } from "./config.js";
 import { listPlugins } from "./plugins.js";
+import { HELP_SECTIONS } from "./screens.js";
 
 function banner(cfg, currentChat, historyLen, pinsCount = 0) {
   console.clear();

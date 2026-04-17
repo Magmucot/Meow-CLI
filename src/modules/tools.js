@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { createTwoFilesPatch } from "diff";
-import { exec, execSync } from "child_process";
+import { exec, execFileSync, execSync } from "child_process";
 import { C, WARNING, SUCCESS, ERROR, MUTED, TEXT, TEXT_DIM, log, box, COLS, SHELL_TIMEOUT_MS } from "./ui.js";
 import { CONF_FILE, DATA_DIR, UNDO_FILE } from "./config.js";
 import { loadUndoState, saveUndoState } from "./persistence.js";
@@ -605,12 +605,11 @@ function grepSearch(pattern, searchPath, include, maxResults = 50) {
     if (!fs.existsSync(dir)) return `❌ Path not found: ${dir}`;
 
     try {
-      const parts = ["grep", "-rn", "--color=never"];
-      if (include) parts.push(`--include=${include}`);
-      parts.push("-E", JSON.stringify(pattern), JSON.stringify(dir));
+      const args = ["-rn", "--color=never"];
+      if (include) args.push(`--include=${include}`);
+      args.push("-E", pattern, dir);
 
-      const cmd = parts.join(" ");
-      const output = execSync(cmd, {
+      const output = execFileSync("grep", args, {
         encoding: "utf8",
         maxBuffer: 5 * 1024 * 1024,
         timeout: 10000,

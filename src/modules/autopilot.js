@@ -9,6 +9,7 @@ import { LOG_DIR } from "./config.js";
 import { formatDuration } from "./utils.js";
 import { callApi } from "./api.js";
 import { executeTool, runShell } from "./tools.js";
+import { getTrustManager, TRUST_LEVEL } from "./trust.js";
 
 /** @type {Object} Autopilot execution phases */
 const PHASE = {

@@ -43,6 +43,9 @@ class WorkspaceSandbox {
       /nc\s+-e/, /nc\s+.*-c\s+bash/, /netcat\s+-e/,
       /python\s+-c\s+.*import\s+os,pty,socket/,
       /perl\s+-e\s+.*exec\s+"\/bin\/sh"/,
+      /eval\s+.*\$\(.*\)/, /exec\s+.*>/,
+      /alias\s+.*=/, /unalias\s+/,
+      /history\s+-c/, /export\s+.*=/,
     ];
     this.blockedEnvVars = [
       /API_KEY/i, /SECRET/i, /PASSWORD/i, /TOKEN/i, /AUTH/i,

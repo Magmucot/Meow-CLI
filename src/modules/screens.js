@@ -188,6 +188,7 @@ const HELP_SECTIONS = (cfg) => [
       ["/pins",              t(cfg, "cmd_pins")],
       ["/pin [index]",       t(cfg, "cmd_pin")],
       ["/plugin [cmd]",      t(cfg, "cmd_plugin")],
+      ["/optimize",          t(cfg, "cmd_optimize")],
       ["/template <name>",   t(cfg, "cmd_template")],
       ["/vacuum [opts]",     t(cfg, "cmd_vacuum")],
       ["/alias",             t(cfg, "cmd_alias")],

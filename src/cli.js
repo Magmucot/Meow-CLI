@@ -21,6 +21,7 @@ import { CheckpointManager } from "./modules/checkpoints.js";
 import { SessionManager } from "./modules/sessions.js";
 import { CostTracker } from "./modules/cost-tracker.js";
 import { shouldAutoCompact, compactMessages, printCompactResult, estimateTokens } from "./modules/compact.js";
+import { PromptOptimizer } from "./modules/smart/prompt-optimizer.js";
 
 function parseArgs() {
   const args = process.argv.slice(2);

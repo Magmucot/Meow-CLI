@@ -23,6 +23,7 @@ class WorkspaceSandbox {
    */
   constructor(workspaceRoot = process.cwd()) {
     this.root = path.resolve(workspaceRoot);
+    this.allowedPaths = new Set([this.root]);
     this.blockedPatterns = [
       /\.ssh/i, /\.gnupg/i, /\.aws\/credentials/i, /\.env(?:\.local)?$/i,
       /id_rsa/, /id_ed25519/, /\.pem$/, /\.key$/,

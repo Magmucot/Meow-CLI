@@ -241,6 +241,7 @@ const I18N = {
     cmd_key: "Set API key",
     cmd_url: "Set base URL",
     cmd_config: "Show current config",
+    cmd_provider: "Manage API providers",
     cmd_git: "Configure git auto-commits and prefixes",
     cmd_undo: "Undo last N file changes (simple undo)",
     cmd_rewind: "Rewind project to N checkpoints back",

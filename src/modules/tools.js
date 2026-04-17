@@ -1072,6 +1072,30 @@ async function executeTool(name, args, cfg, env = process.env) {
       const { ciTool } = await import("./smart/cicd.js");
       return await ciTool(args, cfg);
     }
+    case \"linux_process_list\": {
+      const { linuxProcessList } = await import(\"./linux-sys.js\");
+      return linuxProcessList();
+    }
+    case \"linux_process_kill\": {
+      const { linuxProcessKill } = await import(\"./linux-sys.js\");
+      return await linuxProcessKill(args, cfg);
+    }
+    case \"linux_service_control\": {
+      const { linuxServiceControl } = await import(\"./linux-sys.js\");
+      return await linuxServiceControl(args, cfg);
+    }
+    case \"linux_disk_usage\": {
+      const { linuxDiskUsage } = await import(\"./linux-sys.js\");
+      return linuxDiskUsage();
+    }
+    case \"linux_net_stat\": {
+      const { linuxNetStat } = await import(\"./linux-sys.js\");
+      return linuxNetStat();
+    }
+    case \"linux_pkg_manage\": {
+      const { linuxPkgManage } = await import(\"./linux-sys.js\");
+      return await linuxPkgManage(args, cfg);
+    }
     default:              return `❌ Unknown tool: ${name}`;
   }
 }

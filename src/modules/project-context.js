@@ -19,17 +19,25 @@ const MAX_INCLUDE_DEPTH = 3;
  * @param {number} [depth=0] - Current recursion depth.
  * @returns {string} Content with inclusions resolved.
  */
-function resolveIncludes(content, basePath, depth = 0) {
+function isPathInsideRoot(targetPath, rootPath) {
+  const relative = path.relative(rootPath, targetPath);
+  return !relative.startsWith("..") && !path.isAbsolute(relative);
+}
+
+function resolveIncludes(content, basePath, depth = 0, includeRoot = basePath) {
   if (depth >= MAX_INCLUDE_DEPTH) return content;
 
   return content.replace(INCLUDE_RE, (match, includePath) => {
     const resolved = path.resolve(basePath, includePath.trim());
     try {
+      if (!isPathInsideRoot(resolved, includeRoot)) {
+        return `<!-- Include blocked (outside root): ${includePath.trim()} -->`;
+      }
       if (!fs.existsSync(resolved)) {
         return `<!-- Include not found: ${includePath.trim()} -->`;
       }
       const included = fs.readFileSync(resolved, "utf8");
-      return resolveIncludes(included, path.dirname(resolved), depth + 1);
+      return resolveIncludes(included, path.dirname(resolved), depth + 1, includeRoot);
     } catch (e) {
       return `<!-- Include error: ${e.message} -->`;
     }

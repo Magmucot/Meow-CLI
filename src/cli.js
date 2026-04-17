@@ -158,6 +158,11 @@ async function main() {
   ctx.refreshBanner();
   await loadPlugins(ctx.cfg, ctx);
 
+  const trustStatus = await trust.checkStatus();
+  if (trustStatus !== TRUST_LEVEL.TRUSTED) {
+    console.log(`  ${WARNING(t(ctx.cfg, "trust_readonly_warning"))}\n`);
+  }
+
   while (true) {
     let input;
     try {

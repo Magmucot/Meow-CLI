@@ -147,6 +147,31 @@ class WorkspaceSandbox {
         return { allowed: true };
     }
   }
+
+  /**
+   * Safely executes a command within the sandbox.
+   * @param {string} cmd - Command to execute.
+   * @param {Object} [options={}] - Execution options.
+   * @returns {string} Command output.
+   * @throws {Error} If command is blocked or execution fails.
+   */
+  safeExec(cmd, options = {}) {
+    const check = this.isCommandAllowed(cmd);
+    if (!check.allowed) {
+      throw new Error(`Security Block: ${check.reason}`);
+    }
+
+    const { execSync } = require("child_process");
+    const safeEnv = this.filterEnv(options.env || process.env);
+    
+    return execSync(cmd, {
+      ...options,
+      env: safeEnv,
+      encoding: "utf8",
+      maxBuffer: 10 * 1024 * 1024,
+      timeout: options.timeout || 60000,
+    }).toString();
+  }
 }
 
 /**

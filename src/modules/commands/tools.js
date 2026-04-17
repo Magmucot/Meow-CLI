@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { log, listDir, readFile, runShell, loadUndoState, saveUndoState } from "../../core.js";
+import { getSandbox } from "../security/sandbox.js";
 
 /**
  * Handles /undo, /list, /read, and /shell commands.
@@ -9,6 +10,7 @@ import { log, listDir, readFile, runShell, loadUndoState, saveUndoState } from "
  * @returns {Promise<Object|null>}
  */
 const handleTools = async (ctx, input) => {
+  const sandbox = getSandbox();
   if (input.startsWith("/undo")) {
     const parts = input.split(" ");
     const count = parts[1] ? parseInt(parts[1], 10) : 1;

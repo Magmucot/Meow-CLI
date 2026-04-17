@@ -265,6 +265,7 @@ const I18N = {
     cmd_vacuum: "Configure chat vacuum",
     cmd_alias: "Show aliases",
     cmd_stats: "Show status",
+    cmd_optimize: "Configure prompt optimizer",
     cmd_plugin: "Manage plugins",
     cmd_help: "This help",
     cmd_exit: "Quit",

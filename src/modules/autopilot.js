@@ -740,6 +740,13 @@ class Autopilot {
       ].join("\n"),
     });
 
+    const trust = getTrustManager();
+    const status = await trust.checkStatus();
+    if (status !== TRUST_LEVEL.TRUSTED) {
+      log.err(t(this.cfg, "trust_readonly_warning"));
+      return { error: "Untrusted repository" };
+    }
+
     const origAutoYes = this.cfg.auto_yes;
     this.cfg.auto_yes = true;
 

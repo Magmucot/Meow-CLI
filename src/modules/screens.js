@@ -171,6 +171,7 @@ const HELP_SECTIONS = (cfg) => [
       ["/temp [0.0-2.0]",    t(cfg, "cmd_temp")],
       ["/key [sk-...]",      t(cfg, "cmd_key")],
       ["/url [http...]",     t(cfg, "cmd_url")],
+      ["/provider",          t(cfg, "cmd_provider")],
       ["/lang <ru|en>",      "Switch UI language"],
       ["/config",            t(cfg, "cmd_config")],
       ["/saveconfig",        t(cfg, "cmd_saveconfig")],

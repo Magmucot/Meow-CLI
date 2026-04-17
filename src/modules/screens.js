@@ -197,6 +197,8 @@ const HELP_SECTIONS = (cfg) => [
   },
 ];
 
+export { HELP_SECTIONS };
+
 function printHelp(cfg, topic) {
   const sections = HELP_SECTIONS(cfg);
 

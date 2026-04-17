@@ -250,6 +250,10 @@ class MemoryStore {
     return this.add(MemoryType.PATTERN, `Pattern: ${pattern}${example ? `\nExample: ${example}` : ""}`);
   }
 
+  recordLeadDevContext(context) {
+    return this.add(MemoryType.LEAD_DEV, `Lead-Dev Context: ${context}`);
+  }
+
   getProjectMemories(project = null) {
     this.load();
     const p = project || getProjectId();

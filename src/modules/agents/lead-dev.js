@@ -328,7 +328,11 @@ class LeadDevSession {
         console.log(`\n  ${ACCENT2}${C.bold}🔄 Round ${round}/${this.maxTasks}${C.reset} ${MUTED}— Deep Analysis...${C.reset}`);
         
         const context = round === 1 ? initialContext : `Completed: ${this.tasksCompleted.slice(-2).map(t => t.task).join("; ")}`;
-        const suggestions = await suggestNextTasks(this.cfg, this.analyzer, { context, focus: this.focusArea });
+        const suggestions = await suggestNextTasks(this.cfg, this.analyzer, { 
+          context, 
+          focus: this.focusArea,
+          failedTasks: this.tasksFailed 
+        });
 
         if (!suggestions || suggestions.length === 0) {
           log.ok("Project state is optimal. No further suggestions.");

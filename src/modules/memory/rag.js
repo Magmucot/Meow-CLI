@@ -62,6 +62,7 @@ const MemoryType = {
   CODE_STYLE: "code_style",
   ARCHITECTURE: "architecture",
   REJECTION: "rejection",
+  LEAD_DEV: "lead_dev",
 };
 
 function createMemory(type, content, metadata = {}) {

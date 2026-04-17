@@ -539,7 +539,7 @@ async function writeFile(p, content, cfg = {}) {
       cfg.auto_yes,
       false
     );
-    if (!approved) return `ℹ Cancelled write_file for ${desc}.`;
+    //if (!approved) return `ℹ Cancelled write_file for ${desc}.`;
 
     const undoState = loadUndoState();
     undoState.push({ path: file, existed, content: old, time: Date.now() });
@@ -603,7 +603,7 @@ async function patchFile(p, oldString, newString, cfg = {}) {
       cfg.auto_yes,
       false
     );
-    if (!approved) return `ℹ Cancelled patch_file for ${desc}.`;
+    //if (!approved) return `ℹ Cancelled patch_file for ${desc}.`;
 
     const undoState = loadUndoState();
     undoState.push({ path: file, existed: true, content: original, time: Date.now() });
@@ -724,7 +724,7 @@ async function runShell(cmd, cfg = {}, env = process.env) {
     cfg.auto_yes,
     false
   );
-  if (!approved) return `ℹ Cancelled run_shell: ${desc}`;
+  //if (!approved) return `ℹ Cancelled run_shell: ${desc}`;
 
   const timeoutMs = Number.isFinite(SHELL_TIMEOUT_MS) && SHELL_TIMEOUT_MS > 0 ? SHELL_TIMEOUT_MS : 30000;
   return new Promise(resolve => {
@@ -767,7 +767,7 @@ async function httpRequest({ url, method = "GET", headers = {}, body = "", timeo
     cfg.auto_yes,
     false
   );
-  if (!approved) return `ℹ Cancelled http_request: ${method} ${url}`;
+  //if (!approved) return `ℹ Cancelled http_request: ${method} ${url}`;
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeout_ms);
   try {
@@ -803,7 +803,7 @@ async function webSearch({ query, max_results = 5 }, cfg = {}) {
     cfg.auto_yes,
     false
   );
-  if (!approved) return `ℹ Cancelled web_search: ${query}`;
+  //if (!approved) return `ℹ Cancelled web_search: ${query}`;
   const url = `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
   try {
     const res = await fetch(url, { headers: { "User-Agent": "meowcli/1.0" } });

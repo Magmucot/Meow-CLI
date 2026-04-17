@@ -221,7 +221,7 @@ const TASK_CATEGORIES = [
  * Uses AI to suggest next tasks based on deep project context.
  */
 async function suggestNextTasks(cfg, analyzer, options = {}) {
-  const { context = "", focus = "" } = options;
+  const { context = "", focus = "", failedTasks = [] } = options;
   const git = new GitAnalyzer();
   const intel = new CodeIntelligence();
   
@@ -250,6 +250,7 @@ async function suggestNextTasks(cfg, analyzer, options = {}) {
     `Project: ${analyzer.projectType}`,
     `Structure: ${structure.join(", ").slice(0, 500)}...`,
     failedGates.length > 0 ? `FAILED GATES: ${failedGates.map(g => g.gate).join(", ")}` : "All gates pass.",
+    failedTasks.length > 0 ? `PREVIOUSLY FAILED TASKS: ${failedTasks.map(t => t.task).join("; ")} (Avoid repeating these without a new approach)` : "",
     hotFiles.length > 0 ? `HOT FILES (frequent changes): ${hotFiles.map(f => f.file).join(", ")}` : "",
     uncommitted ? `UNCOMMITTED CHANGES:\n${uncommitted}` : "",
     todoItems.length > 0 ? `TODO/FIXME Items: ${todoItems.length} found` : "",

@@ -21,6 +21,27 @@ const SAFE_TOOLS = new Set(["list_dir", "read_file", "grep_search", "ask_user", 
 const DANGEROUS_TOOLS = new Set(["run_shell", "write_file", "patch_file", "http_request", "web_search", "git_commit", "git_branch", "ci_pipeline", "delegate_task"]);
 
 /**
+ * Determines whether a delegate_task request can lead to mutating operations.
+ * Delegate calls that omit tools (default sub-agent toolset) are treated as dangerous.
+ * @param {Object} args - Tool call arguments.
+ * @returns {boolean}
+ */
+function isDangerousDelegateTask(args = {}) {
+  const tasks = Array.isArray(args.tasks) ? args.tasks : [];
+  if (tasks.length === 0) return true;
+
+  for (const task of tasks) {
+    const tools = task?.tools;
+    if (!Array.isArray(tools) || tools.length === 0) return true;
+    for (const tool of tools) {
+      if (DANGEROUS_TOOLS.has(tool)) return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * Matches a tool name against a pattern.
  * @param {string} pattern - The pattern to match (e.g., "write_file:*").
  * @param {string} value - The tool name.
@@ -150,6 +171,9 @@ class PermissionStore {
    */
   check(toolName, args = {}) {
     if (SAFE_TOOLS.has(toolName)) return LEVEL.ALLOW;
+    if (toolName === "delegate_task" && !isDangerousDelegateTask(args)) {
+      return LEVEL.ALLOW;
+    }
 
     if (this.sessionOverrides.has(toolName)) {
       return this.sessionOverrides.get(toolName);

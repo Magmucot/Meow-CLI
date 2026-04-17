@@ -10,6 +10,7 @@ import {
   parseKv,
   saveHistoryState
 } from "../../core.js";
+import { getSandbox } from "../security/sandbox.js";
 
 /**
  * Handles miscellaneous commands like /alias, /export, /import, and /template.
@@ -18,6 +19,7 @@ import {
  * @returns {Promise<Object|null>}
  */
 const handleMisc = async (ctx, input) => {
+  const sandbox = getSandbox();
   if (input === "/alias") {
     console.log(""); console.log(`  ${ACCENT}${C.bold}◆ Aliases${C.reset}`);
     console.log(`  ${MUTED}${"─".repeat(35)}${C.reset}`);

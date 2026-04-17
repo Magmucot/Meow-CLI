@@ -5,7 +5,7 @@ import {
   WARNING, TOOL_CLR, TEXT_DIM, AI_CLR, INFO,
   log, Spinner, renderMD, COLS, box
 } from "./ui.js";
-import { LOG_DIR } from "./config.js";
+import { LOG_DIR, t } from "./config.js";
 import { formatDuration } from "./utils.js";
 import { callApi } from "./api.js";
 import { executeTool, runShell } from "./tools.js";

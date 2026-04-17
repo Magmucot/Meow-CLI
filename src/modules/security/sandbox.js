@@ -29,6 +29,8 @@ class WorkspaceSandbox {
       /\.bash_history/, /\.zsh_history/,
       /\.node_repl_history/, /\.npmrc$/, /\.yarnrc$/,
       /config\.json$/i, // Generic config files often contain keys
+      /\.dockercfg$/, /\.docker\/config\.json$/,
+      /\.netrc$/, /\.pypirc$/,
     ];
     this.blockedCommands = [
       /rm\s+(-rf?|--recursive)\s+\//,
@@ -38,6 +40,9 @@ class WorkspaceSandbox {
       /chmod\s+777\s+\//, /chown\s+.* \//,
       /kill\s+-9\s+1/, /shutdown/, /reboot/,
       /passwd\s+root/, /visudo/,
+      /nc\s+-e/, /nc\s+.*-c\s+bash/, /netcat\s+-e/,
+      /python\s+-c\s+.*import\s+os,pty,socket/,
+      /perl\s+-e\s+.*exec\s+"\/bin\/sh"/,
     ];
     this.blockedEnvVars = [
       /API_KEY/i, /SECRET/i, /PASSWORD/i, /TOKEN/i, /AUTH/i,

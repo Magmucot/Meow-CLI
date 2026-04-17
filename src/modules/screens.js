@@ -19,7 +19,7 @@ function banner(cfg, currentChat, historyLen, pinsCount = 0) {
   console.log(`  ${MUTED("─".repeat(Math.min(COLS - 4, 50)))}`);
   const pairs = [
     [`model`,   `${ACCENT(cfg.model)}`],
-    [`prov`,    `${ACCENT3(cfg.active_provider || \"manual\")}`],
+    [`prov`,    `${ACCENT3(cfg.active_provider || "manual")}`],
     [`profile`, `${ACCENT2(cfg.profile)}`],
     [`chat`,    `${SUCCESS(currentChat)}`],
     [`msgs`,    `${TEXT_DIM(historyLen)}`],

@@ -7,6 +7,7 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import os from "os";
+import { execSync } from "child_process";
 import { DATA_DIR } from "../config.js";
 import { log, C, ACCENT, MUTED, TEXT_DIM, SUCCESS, ERROR, WARNING } from "../ui.js";
 

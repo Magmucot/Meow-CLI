@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { callApi } from "../api.js";
-import { log } from "../ui.js";
+import { log, ACCENT, MUTED } from "../ui.js";
 
 /**
  * Prompt Optimizer utility.

@@ -1172,8 +1172,84 @@ const EXTENDED_TOOLS = [
   },
 ];
 
+/**
+ * Linux system management tool definitions (Beta).
+ * @type {Array<Object>}
+ */
+const LINUX_TOOLS = [
+  {
+    type: "function",
+    function: {
+      name: "linux_process_list",
+      description: "List top 20 running processes by CPU usage.",
+      parameters: { type: "object", properties: {} }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "linux_process_kill",
+      description: "Kill a process by PID.",
+      parameters: {
+        type: "object",
+        properties: {
+          pid: { type: "number", description: "Process ID" },
+          signal: { type: "string", description: "Signal to send (default: SIGTERM)" }
+        },
+        required: ["pid"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "linux_service_control",
+      description: "Manage systemd services (start, stop, restart, status, enable, disable).",
+      parameters: {
+        type: "object",
+        properties: {
+          service: { type: "string", description: "Service name (e.g., 'nginx')" },
+          action: { type: "string", enum: ["start", "stop", "restart", "status", "enable", "disable"] }
+        },
+        required: ["service", "action"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "linux_disk_usage",
+      description: "Check disk space usage (df -h).",
+      parameters: { type: "object", properties: {} }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "linux_net_stat",
+      description: "Check network connections and listening ports.",
+      parameters: { type: "object", properties: {} }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "linux_pkg_manage",
+      description: "Basic Linux package management (install/update). Supports apt, dnf, yum, pacman.",
+      parameters: {
+        type: "object",
+        properties: {
+          action: { type: "string", enum: ["install", "update"] },
+          package: { type: "string", description: "Package name to install (if action is install)" }
+        },
+        required: ["action"]
+      }
+    }
+  }
+];
+
 /** All available tools combined. */
-const ALL_TOOLS = [...TOOLS, ...EXTENDED_TOOLS];
+const ALL_TOOLS = [...TOOLS, ...EXTENDED_TOOLS, ...LINUX_TOOLS];
 
 export {
   TOOLS, ALL_TOOLS, EXTENDED_TOOLS,

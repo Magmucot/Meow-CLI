@@ -162,7 +162,6 @@ class WorkspaceSandbox {
       throw new Error(`Security Block: ${check.reason}`);
     }
 
-    const { execSync } = require("child_process");
     const safeEnv = this.filterEnv(options.env || process.env);
     
     return execSync(cmd, {

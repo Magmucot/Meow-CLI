@@ -166,6 +166,16 @@ function loadProjectContext() {
     });
   }
 
+  const projectMeowPath = path.resolve(process.cwd(), PROJECT_MEOW);
+  const projectMeowCtx = loadContextFile(projectMeowPath);
+  if (projectMeowCtx) {
+    parts.push({
+      source: "project",
+      path: projectMeowPath,
+      content: projectMeowCtx,
+    });
+  }
+
   return parts;
 }
 

@@ -109,6 +109,8 @@ const DEFAULT_CONFIG = {
     "/trust": "/trust",
     "/opt": "/optimize",
   },
+  providers: {},
+  active_provider: "",
   trust_url: "https://raw.githubusercontent.com/meowcli/meow-cli/main/globals/trust/trust.meow",
   templates: {
     "fix": "Исправь ошибку в следующем коде: {code}. Объясни, в чем была проблема.",

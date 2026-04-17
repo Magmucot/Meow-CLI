@@ -515,7 +515,7 @@ async function moveFile(from, to, cfg = {}) {
     const src = path.resolve(from);
     const dest = path.resolve(to);
     if (!fs.existsSync(src)) return `❌ Source not found: ${src}`;
-    
+
     const descFrom = describeFileChange(src);
     const descTo = describeFileChange(dest);
 
@@ -1028,22 +1028,22 @@ async function toolChain(steps, cfg, env) {
 async function executeTool(name, args, cfg, env = process.env) {
   const cleanName = (name || "").replace(/^proxy_/, "");
   switch (cleanName) {
-    case "list_dir":      return listDir(args.path, args.recursive);
-    case "read_file":     return readFile(args.path, args.start_line, args.end_line);
-    case "write_file":    return await writeFile(args.path, args.content, cfg);
-    case "patch_file":    return await patchFile(args.path, args.old_string, args.new_string, cfg);
-    case "move_file":     return await moveFile(args.from, args.to, cfg);
-    case "copy_file":     return await copyFile(args.from, args.to, cfg);
-    case "delete_file":   return await deleteFile(args.path, args.recursive, cfg);
+    case "list_dir": return listDir(args.path, args.recursive);
+    case "read_file": return readFile(args.path, args.start_line, args.end_line);
+    case "write_file": return await writeFile(args.path, args.content, cfg);
+    case "patch_file": return await patchFile(args.path, args.old_string, args.new_string, cfg);
+    case "move_file": return await moveFile(args.from, args.to, cfg);
+    case "copy_file": return await copyFile(args.from, args.to, cfg);
+    case "delete_file": return await deleteFile(args.path, args.recursive, cfg);
     case "get_system_info": return getSystemInfo();
-    case "grep_search":   return grepSearch(args.pattern, args.path, args.include, args.max_results);
-    case "run_shell":     return await runShell(args.cmd, cfg, env);
-    case "ask_user":      return await askUser(args.question, cfg.auto_yes, args.default || "");
-    case "confirm":       return String(await confirmUser(args.message, cfg.auto_yes, args.default));
-    case "choose":        return await chooseUser(args.question, args.options, cfg.auto_yes, args.default_index);
-    case "http_request":  return await httpRequest(args, cfg);
-    case "web_search":    return await webSearch(args, cfg);
-    case "tool_chain":    return await toolChain(args.steps, cfg, env);
+    case "grep_search": return grepSearch(args.pattern, args.path, args.include, args.max_results);
+    case "run_shell": return await runShell(args.cmd, cfg, env);
+    case "ask_user": return await askUser(args.question, cfg.auto_yes, args.default || "");
+    case "confirm": return String(await confirmUser(args.message, cfg.auto_yes, args.default));
+    case "choose": return await chooseUser(args.question, args.options, cfg.auto_yes, args.default_index);
+    case "http_request": return await httpRequest(args, cfg);
+    case "web_search": return await webSearch(args, cfg);
+    case "tool_chain": return await toolChain(args.steps, cfg, env);
     case "delegate_task": {
       const { delegateTask } = await import("./agents/subagent.js");
       return await delegateTask(args, cfg);
@@ -1072,31 +1072,31 @@ async function executeTool(name, args, cfg, env = process.env) {
       const { ciTool } = await import("./smart/cicd.js");
       return await ciTool(args, cfg);
     }
-    case \"linux_process_list\": {
-      const { linuxProcessList } = await import(\"./linux-sys.js\");
+    case "linux_process_list": {
+      const { linuxProcessList } = await import("./linux-sys.js");
       return linuxProcessList();
     }
-    case \"linux_process_kill\": {
-      const { linuxProcessKill } = await import(\"./linux-sys.js\");
+    case "linux_process_kill": {
+      const { linuxProcessKill } = await import("./linux-sys.js");
       return await linuxProcessKill(args, cfg);
     }
-    case \"linux_service_control\": {
-      const { linuxServiceControl } = await import(\"./linux-sys.js\");
+    case "linux_service_control": {
+      const { linuxServiceControl } = await import("./linux-sys.js");
       return await linuxServiceControl(args, cfg);
     }
-    case \"linux_disk_usage\": {
-      const { linuxDiskUsage } = await import(\"./linux-sys.js\");
+    case "linux_disk_usage": {
+      const { linuxDiskUsage } = await import("./linux-sys.js");
       return linuxDiskUsage();
     }
-    case \"linux_net_stat\": {
-      const { linuxNetStat } = await import(\"./linux-sys.js\");
+    case "linux_net_stat": {
+      const { linuxNetStat } = await import("./linux-sys.js");
       return linuxNetStat();
     }
-    case \"linux_pkg_manage\": {
-      const { linuxPkgManage } = await import(\"./linux-sys.js\");
+    case "linux_pkg_manage": {
+      const { linuxPkgManage } = await import("./linux-sys.js");
       return await linuxPkgManage(args, cfg);
     }
-    default:              return `❌ Unknown tool: ${name}`;
+    default: return `❌ Unknown tool: ${name}`;
   }
 }
 
@@ -1136,10 +1136,12 @@ const EXTENDED_TOOLS = [
     function: {
       name: "git_diff",
       description: "Show git diff (staged or unstaged changes)",
-      parameters: { type: "object", properties: {
-        staged: { type: "boolean", description: "Show staged changes" },
-        file: { type: "string", description: "Specific file" },
-      }}
+      parameters: {
+        type: "object", properties: {
+          staged: { type: "boolean", description: "Show staged changes" },
+          file: { type: "string", description: "Specific file" },
+        }
+      }
     }
   },
   {
@@ -1147,10 +1149,12 @@ const EXTENDED_TOOLS = [
     function: {
       name: "git_log",
       description: "Show recent git commits",
-      parameters: { type: "object", properties: {
-        count: { type: "number", description: "Number of commits (default 10)" },
-        file: { type: "string", description: "Filter by file" },
-      }}
+      parameters: {
+        type: "object", properties: {
+          count: { type: "number", description: "Number of commits (default 10)" },
+          file: { type: "string", description: "Filter by file" },
+        }
+      }
     }
   },
   {
@@ -1158,10 +1162,12 @@ const EXTENDED_TOOLS = [
     function: {
       name: "git_commit",
       description: "Stage and commit changes",
-      parameters: { type: "object", properties: {
-        message: { type: "string" },
-        files: { type: "array", items: { type: "string" } },
-      }, required: ["message"]}
+      parameters: {
+        type: "object", properties: {
+          message: { type: "string" },
+          files: { type: "array", items: { type: "string" } },
+        }, required: ["message"]
+      }
     }
   },
   {
@@ -1169,9 +1175,11 @@ const EXTENDED_TOOLS = [
     function: {
       name: "git_branch",
       description: "List, create, or checkout branches",
-      parameters: { type: "object", properties: {
-        create: { type: "boolean" }, checkout: { type: "boolean" }, name: { type: "string" },
-      }}
+      parameters: {
+        type: "object", properties: {
+          create: { type: "boolean" }, checkout: { type: "boolean" }, name: { type: "string" },
+        }
+      }
     }
   },
   {
@@ -1187,11 +1195,13 @@ const EXTENDED_TOOLS = [
     function: {
       name: "ci_pipeline",
       description: "Manage CI/CD. Actions: status (list workflows), generate (create GitHub Actions), heal (auto-fix failing tests)",
-      parameters: { type: "object", properties: {
-        action: { type: "string", enum: ["status", "generate", "heal"] },
-        description: { type: "string" },
-        name: { type: "string" },
-      }, required: ["action"]}
+      parameters: {
+        type: "object", properties: {
+          action: { type: "string", enum: ["status", "generate", "heal"] },
+          description: { type: "string" },
+          name: { type: "string" },
+        }, required: ["action"]
+      }
     }
   },
 ];

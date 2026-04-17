@@ -134,7 +134,8 @@ class GitAnalyzer {
   getHotFiles(limit = 10) {
     if (!this.hasGit) return [];
     try {
-      const output = execSync("git log --format='' --name-only | sort | uniq -c | sort -rn | head -n " + limit, { encoding: "utf8", cwd: this.cwd });
+      const sandbox = getSandbox();
+      const output = sandbox.safeExec("git log --format='' --name-only | sort | uniq -c | sort -rn | head -n " + limit, { cwd: this.cwd });
       return output.trim().split("\n").map(line => {
         const [count, file] = line.trim().split(/\s+/);
         return { file, changes: parseInt(count, 10) };

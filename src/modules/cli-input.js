@@ -13,6 +13,7 @@ export const COMMANDS = [
   // Chat
   "/chat list", "/chat new", "/chat use", "/chat delete",
   "/reset", "/compact", "/compact --ai",
+  "/optimize", "/opt",
   // Autopilot
   "/ap-config", "/ap-limit", "/ap-errors", "/trigger",
   // Agents

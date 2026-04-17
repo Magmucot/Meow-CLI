@@ -107,6 +107,7 @@ const DEFAULT_CONFIG = {
     "/rt": "/routing",
     "/i": "/init",
     "/trust": "/trust",
+    "/opt": "/optimize",
   },
   trust_url: "https://raw.githubusercontent.com/meowcli/meow-cli/main/globals/trust/trust.meow",
   templates: {

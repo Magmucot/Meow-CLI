@@ -18,7 +18,7 @@ const LEVEL = {
 const SAFE_TOOLS = new Set(["list_dir", "read_file", "grep_search", "ask_user", "confirm", "choose", "git_status", "git_log", "git_diff"]);
 
 /** @type {Set<string>} Set of tools that require explicit user permission */
-const DANGEROUS_TOOLS = new Set(["run_shell", "write_file", "patch_file", "http_request", "web_search", "git_commit", "git_branch", "ci_pipeline"]);
+const DANGEROUS_TOOLS = new Set(["run_shell", "write_file", "patch_file", "http_request", "web_search", "git_commit", "git_branch", "ci_pipeline", "delegate_task"]);
 
 /**
  * Matches a tool name against a pattern.

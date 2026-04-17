@@ -8,6 +8,7 @@ import { getModelPrice } from "../cost-tracker.js";
 import { formatDuration } from "../utils.js";
 import { getMemoryStore } from "../memory/rag.js";
 import { DATA_DIR } from "../config.js";
+import { getSandbox } from "../security/sandbox.js";
 
 const LEAD_LOG_DIR = path.join(DATA_DIR, "lead-dev-logs");
 

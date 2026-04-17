@@ -70,6 +70,7 @@ const commandHandlers = [
   handleCost,
   handleCompact,
   handleInit,
+  handleProvider,
   handleLead,
   handleDelegate,
   handleMemory,

@@ -36,6 +36,8 @@ function banner(cfg, currentChat, historyLen, pinsCount = 0) {
   console.log(`  ${MUTED("Tab")} ${TEXT_DIM("autocomplete  ·  ")}${MUTED("/help <topic>")} ${TEXT_DIM("e.g. /help chat, /help settings")}\n`);
 }
 
+import { COMMANDS } from "./cli-input.js";
+
 /**
  * All help sections — used by printHelp for both overview and filtered views.
  */

@@ -2,6 +2,7 @@ import { TOOL_CLR, C, MUTED, TEXT_DIM, ERROR, WARNING, COLS, log } from "./ui.js
 import { executeTool } from "./tools.js";
 import { askPermission, getPermissionStore } from "./permissions.js";
 import { getTrustManager, TRUST_LEVEL } from "./trust.js";
+import { t } from "./config.js";
 
 const READONLY_TOOLS = new Set(["list_dir", "read_file", "grep_search", "git_diff", "git_log", "git_status"]);
 

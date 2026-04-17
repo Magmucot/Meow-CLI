@@ -1,3 +1,4 @@
+import { COMMANDS } from "./cli-input.js";
 import {
   ACCENT, ACCENT2, ACCENT3, SUCCESS, WARNING, ERROR, MUTED,
   TEXT, TEXT_DIM, AUTO_CLR, INFO, C, COLS, box, table, list, log, stripAnsi, 

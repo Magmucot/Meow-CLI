@@ -503,6 +503,125 @@ async function autoGitCommit(message, cfg) {
 }
 
 /**
+ * Moves or renames a file or directory.
+ * @param {string} from - Source path.
+ * @param {string} to - Destination path.
+ * @param {Object} [cfg={}] - Configuration.
+ * @returns {Promise<string>} Result message.
+ */
+async function moveFile(from, to, cfg = {}) {
+  try {
+    const src = path.resolve(from);
+    const dest = path.resolve(to);
+    if (!fs.existsSync(src)) return `❌ Source not found: ${src}`;
+    
+    const descFrom = describeFileChange(src);
+    const descTo = describeFileChange(dest);
+
+    const approved = await confirmUser(
+      `Move/Rename ${descFrom} to ${descTo}?`,
+      cfg.auto_yes,
+      false
+    );
+    // if (!approved) return `ℹ Cancelled move_file.`;
+
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.renameSync(src, dest);
+
+    autoGitCommit(`move ${descFrom} to ${descTo}`, cfg);
+    return `✅ Moved: ${descFrom} → ${descTo}`;
+  } catch (e) { return `❌ Move error: ${e.message}`; }
+}
+
+/**
+ * Copies a file or directory.
+ * @param {string} from - Source path.
+ * @param {string} to - Destination path.
+ * @param {Object} [cfg={}] - Configuration.
+ * @returns {Promise<string>} Result message.
+ */
+async function copyFile(from, to, cfg = {}) {
+  try {
+    const src = path.resolve(from);
+    const dest = path.resolve(to);
+    if (!fs.existsSync(src)) return `❌ Source not found: ${src}`;
+
+    const descFrom = describeFileChange(src);
+    const descTo = describeFileChange(dest);
+
+    const approved = await confirmUser(
+      `Copy ${descFrom} to ${descTo}?`,
+      cfg.auto_yes,
+      false
+    );
+    // if (!approved) return `ℹ Cancelled copy_file.`;
+
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    const stat = fs.statSync(src);
+    if (stat.isDirectory()) {
+      fs.cpSync(src, dest, { recursive: true });
+    } else {
+      fs.copyFileSync(src, dest);
+    }
+
+    autoGitCommit(`copy ${descFrom} to ${descTo}`, cfg);
+    return `✅ Copied: ${descFrom} → ${descTo}`;
+  } catch (e) { return `❌ Copy error: ${e.message}`; }
+}
+
+/**
+ * Deletes a file or directory.
+ * @param {string} p - Path to delete.
+ * @param {boolean} [recursive=false] - Recursive delete.
+ * @param {Object} [cfg={}] - Configuration.
+ * @returns {Promise<string>} Result message.
+ */
+async function deleteFile(p, recursive = false, cfg = {}) {
+  try {
+    const file = path.resolve(p);
+    if (!fs.existsSync(file)) return `❌ Path not found: ${file}`;
+
+    const desc = describeFileChange(file);
+    const approved = await confirmUser(
+      `DELETE ${desc}${recursive ? ' (recursively)' : ''}?`,
+      cfg.auto_yes,
+      false
+    );
+    // if (!approved) return `ℹ Cancelled delete_file.`;
+
+    if (fs.statSync(file).isDirectory()) {
+      if (!recursive) return `❌ ${desc} is a directory. Use recursive: true to delete.`;
+      fs.rmSync(file, { recursive: true, force: true });
+    } else {
+      fs.unlinkSync(file);
+    }
+
+    autoGitCommit(`delete ${desc}`, cfg);
+    return `✅ Deleted: ${desc}`;
+  } catch (e) { return `❌ Delete error: ${e.message}`; }
+}
+
+/**
+ * Gets system information.
+ * @returns {string} System info JSON.
+ */
+function getSystemInfo() {
+  const info = {
+    platform: process.platform,
+    arch: process.arch,
+    node_version: process.version,
+    cpus: os.cpus().length,
+    memory_total: Math.round(os.totalmem() / (1024 * 1024)) + " MB",
+    memory_free: Math.round(os.freemem() / (1024 * 1024)) + " MB",
+    cwd: process.cwd(),
+    shell: process.env.SHELL || "unknown",
+    time: new Date().toISOString(),
+    uptime: Math.round(process.uptime()) + "s"
+  };
+  return JSON.stringify(info, null, 2);
+}
+
+/**
  * Lists directory contents.
  * @param {string} p - Directory path.
  * @param {boolean} [recursive=false] - Recursive mode.

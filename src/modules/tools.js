@@ -77,6 +77,62 @@ const TOOLS = [
   {
     type: "function",
     function: {
+      name: "move_file",
+      description: "Move or rename a file or directory.",
+      parameters: {
+        type: "object",
+        properties: {
+          from: { type: "string", description: "Source path" },
+          to: { type: "string", description: "Destination path" }
+        },
+        required: ["from", "to"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "copy_file",
+      description: "Copy a file or directory.",
+      parameters: {
+        type: "object",
+        properties: {
+          from: { type: "string", description: "Source path" },
+          to: { type: "string", description: "Destination path" }
+        },
+        required: ["from", "to"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "delete_file",
+      description: "Delete a file or directory.",
+      parameters: {
+        type: "object",
+        properties: {
+          path: { type: "string", description: "Path to delete" },
+          recursive: { type: "boolean", description: "If true, delete directory and its contents" }
+        },
+        required: ["path"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_system_info",
+      description: "Get information about the current system (OS, Node version, etc.).",
+      parameters: {
+        type: "object",
+        properties: {}
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
       name: "grep_search",
       description: "Search for a pattern across files in a directory. Returns matching lines with file paths and line numbers.",
       parameters: {

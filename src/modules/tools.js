@@ -1178,6 +1178,6 @@ const ALL_TOOLS = [...TOOLS, ...EXTENDED_TOOLS];
 export {
   TOOLS, ALL_TOOLS, EXTENDED_TOOLS,
   promptLine, askUser, confirmUser, chooseUser,
-  listDir, readFile, writeFile, patchFile, grepSearch,
+  listDir, readFile, writeFile, patchFile, moveFile, copyFile, deleteFile, getSystemInfo, grepSearch,
   runShell, httpRequest, webSearch, toolChain, executeTool
 };

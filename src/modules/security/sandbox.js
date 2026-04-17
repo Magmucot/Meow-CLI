@@ -72,11 +72,12 @@ class WorkspaceSandbox {
         realPath = resolved;
       }
 
-      // Check if it's within workspace or tmp
+      // Check if it's within workspace or tmp or explicitly allowed paths
       const isUnderRoot = realPath.startsWith(this.root + path.sep) || realPath === this.root;
       const isUnderTmp = realPath.startsWith(os.tmpdir());
+      const isExplicitlyAllowed = Array.from(this.allowedPaths).some(p => realPath.startsWith(p + path.sep) || realPath === p);
 
-      if (!isUnderRoot && !isUnderTmp) {
+      if (!isUnderRoot && !isUnderTmp && !isExplicitlyAllowed) {
         return { allowed: false, reason: `Access outside workspace: ${realPath}` };
       }
 

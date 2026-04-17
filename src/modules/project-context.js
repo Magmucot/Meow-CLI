@@ -7,6 +7,8 @@ import { log, C, ACCENT, MUTED, TEXT, TEXT_DIM, COLS } from "./ui.js";
 
 /** @type {string} Default filename for local project context */
 const LOCAL_MEOW_MD = "MEOW.md";
+/** @type {string} Project index filename */
+const PROJECT_MEOW = "project.meow";
 /** @type {RegExp} Pattern for !include directives in context files */
 const INCLUDE_RE = /^!include\s+(.+)$/gm;
 /** @type {number} Maximum size of a context file in characters */

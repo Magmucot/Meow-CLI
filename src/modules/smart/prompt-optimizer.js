@@ -38,6 +38,7 @@ export class PromptOptimizer {
       
       if (this.optCfg.verbose) {
         log.dim(`Prompt optimized: ${prompt.length} -> ${optimized.length} chars`);
+        log.dim(`→ ${optimized}`);
       }
 
       return optimized;

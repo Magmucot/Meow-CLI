@@ -196,7 +196,7 @@ const I18N = {
     tips_body: `• /help — помощь\n• /pin — сохранить полезный ответ\n• /vacuum on drop:4 keep:1 — автоочистка\n• /plugin list — управление плагинами`,
   },
   en: {
-    banner_subtitle: "Terminal AI Assistant",
+    banner_subtitle: "MeowCLI - Every model in your terminal ",
     api_key_missing_title: "API Key not found",
     api_key_missing_hint: "Use /key sk-... to set it.",
     type_help: "Type /help for commands",
@@ -269,7 +269,7 @@ const I18N = {
     trust_blacklisted: "BLACKLISTED (Security risk)",
     trust_granted: "Trust granted to this repository.",
     trust_blocked: "Cannot grant trust: repository has a bad reputation.",
-    trust_readonly_warning: "⚠️ Repository is not trusted. Operating in READ-ONLY mode.",
+    trust_readonly_warning: "Repository is not trusted. Operating in READ-ONLY mode.",
     stats_title: "◆ Status",
     tips_title: "✨ Tips",
     tips_body: `• /help — help\n• /pin — save useful reply\n• /vacuum on drop:4 keep:1 — auto cleanup\n• /plugin list — manage plugins`,

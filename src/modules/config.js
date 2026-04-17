@@ -106,6 +106,7 @@ const DEFAULT_CONFIG = {
     "/pr": "/preview",
     "/rt": "/routing",
     "/i": "/init",
+    "/pv": "/provider",
     "/trust": "/trust",
     "/opt": "/optimize",
   },
